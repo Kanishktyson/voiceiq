@@ -3277,202 +3277,313 @@ function playIntro(fromGesture) {
     gCtx.putImageData(grainData, 0, 0);
   }
 
-  // ===== AUDIO ENGINE — fully resumed from gesture =====
+  // ===== CINEMATIC AUDIO ENGINE — dark, warm, layered =====
   var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
 
-  // Master limiter to prevent clipping
+  // Master bus with warmth filter
   var masterGain = audioCtx.createGain();
-  masterGain.gain.setValueAtTime(0.85, audioCtx.currentTime);
-  masterGain.connect(audioCtx.destination);
+  masterGain.gain.setValueAtTime(0.75, audioCtx.currentTime);
+  var masterFilter = audioCtx.createBiquadFilter();
+  masterFilter.type = 'lowshelf'; masterFilter.frequency.setValueAtTime(200, audioCtx.currentTime);
+  masterFilter.gain.setValueAtTime(-3, audioCtx.currentTime); // reduce harshness
+  masterGain.connect(masterFilter); masterFilter.connect(audioCtx.destination);
 
-  function playTone(freq, dur, t, type, gainVal, detune) {
+  // Fake reverb — 4-tap delay with feedback
+  function createReverb(input) {
+    for (var rvi = 0; rvi < 4; rvi++) {
+      var delay = audioCtx.createDelay();
+      delay.delayTime.setValueAtTime(0.03 + rvi * 0.04, audioCtx.currentTime);
+      var fbGain = audioCtx.createGain();
+      fbGain.gain.setValueAtTime(0.2 - rvi * 0.04, audioCtx.currentTime);
+      var fbFilter = audioCtx.createBiquadFilter();
+      fbFilter.type = 'lowpass'; fbFilter.frequency.setValueAtTime(2000 - rvi * 300, audioCtx.currentTime);
+      input.connect(delay); delay.connect(fbFilter); fbFilter.connect(fbGain);
+      fbGain.connect(masterGain);
+      // feedback loop
+      fbGain.connect(delay);
+    }
+  }
+
+  // Deep sub — single sine with long decay, for weight
+  function playSub(freq, dur, t, gainVal) {
     try {
       var osc = audioCtx.createOscillator();
       var gain = audioCtx.createGain();
-      osc.type = type || 'sine';
-      osc.frequency.setValueAtTime(freq, t);
-      if (detune) osc.detune.setValueAtTime(detune, t);
+      osc.type = 'sine'; osc.frequency.setValueAtTime(freq, t);
       gain.gain.setValueAtTime(0.001, t);
-      gain.gain.linearRampToValueAtTime(gainVal || 0.3, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + dur - 0.05);
-      osc.connect(gain); gain.connect(masterGain);
+      gain.gain.linearRampToValueAtTime(gainVal || 0.2, t + 0.05);
+      gain.gain.setValueAtTime(gainVal || 0.2, t + dur * 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      var filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass'; filter.frequency.setValueAtTime(80, t);
+      osc.connect(filter); filter.connect(gain); gain.connect(masterGain);
       osc.start(t); osc.stop(t + dur);
     } catch(e) {}
   }
 
-  function playFMSweep(f0, f1, dur, t, gainVal) {
+  // Cinematic thump — noise + tone blended, dark and punchy
+  function playThump(freq, dur, t, gainVal) {
     try {
+      // Tone layer — warm triangle, heavily filtered
       var osc = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      var fm = audioCtx.createOscillator();
-      fm.frequency.setValueAtTime(6, t);
-      fm.start(t); fm.stop(t + dur);
-      var fmGain = audioCtx.createGain();
-      fmGain.gain.setValueAtTime(50, t);
-      fm.connect(fmGain); fmGain.connect(osc.frequency);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f0, t);
-      osc.frequency.exponentialRampToValueAtTime(f1, t + dur);
-      gain.gain.setValueAtTime(0.001, t);
-      gain.gain.linearRampToValueAtTime(gainVal || 0.15, t + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + dur - 0.05);
-      osc.connect(gain); gain.connect(masterGain);
+      var g1 = audioCtx.createGain();
+      osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, t);
+      g1.gain.setValueAtTime(0.001, t);
+      g1.gain.linearRampToValueAtTime(gainVal || 0.15, t + 0.01);
+      g1.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.6);
+      var f1 = audioCtx.createBiquadFilter();
+      f1.type = 'lowpass'; f1.frequency.setValueAtTime(120, t);
+      osc.connect(f1); f1.connect(g1); g1.connect(masterGain);
       osc.start(t); osc.stop(t + dur);
+      // Sub layer
+      playSub(freq * 0.5, dur * 1.3, t, gainVal * 0.6);
+      // Noise transient layer
+      var nLen = Math.ceil(audioCtx.sampleRate * dur * 0.3);
+      var nBuf = audioCtx.createBuffer(1, nLen, audioCtx.sampleRate);
+      var nD = nBuf.getChannelData(0);
+      for (var nti = 0; nti < nLen; nti++) nD[nti] = (Math.random() * 2 - 1) * (1 - nti / nLen);
+      var nSrc = audioCtx.createBufferSource(); nSrc.buffer = nBuf;
+      var ng = audioCtx.createGain();
+      ng.gain.setValueAtTime(0.001, t);
+      ng.gain.linearRampToValueAtTime(gainVal * 0.4 || 0.08, t + 0.005);
+      ng.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.3);
+      var nf = audioCtx.createBiquadFilter();
+      nf.type = 'lowpass'; nf.frequency.setValueAtTime(400, t);
+      nSrc.connect(nf); nf.connect(ng); ng.connect(masterGain);
+      nSrc.start(t); nSrc.stop(t + dur * 0.3);
     } catch(e) {}
   }
 
-  function playNoise(dur, t, freq, gainVal, fadeIn) {
+  // Cinematic pad — multiple detuned triangle waves, heavily low-passed
+  function startPad(freqs, t, dur) {
+    for (var padi = 0; padi < freqs.length; padi++) {
+      try {
+        var o = audioCtx.createOscillator();
+        var g = audioCtx.createGain();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(freqs[padi], t);
+        o.detune.setValueAtTime((Math.random() - 0.5) * 8, t);
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(0.025 - padi * 0.005, t + 2);
+        g.gain.setValueAtTime(0.025 - padi * 0.005, t + dur - 2);
+        g.gain.linearRampToValueAtTime(0.001, t + dur);
+        var f = audioCtx.createBiquadFilter();
+        f.type = 'lowpass'; f.frequency.setValueAtTime(180 + padi * 40, t);
+        f.Q.setValueAtTime(2, t);
+        o.connect(f); f.connect(g); g.connect(masterGain);
+        o.start(t); o.stop(t + dur);
+      } catch(e) {}
+    }
+  }
+
+  // Cinematic string — filtered sawtooth with slow attack
+  function playString(freq, dur, t, gainVal) {
     try {
-      var bufSize = Math.ceil(audioCtx.sampleRate * dur);
-      var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
-      var data = buf.getChannelData(0);
-      for (var ni = 0; ni < bufSize; ni++) data[ni] = (Math.random() * 2 - 1) * Math.pow(1 - ni / bufSize, 2);
-      var src = audioCtx.createBufferSource();
-      src.buffer = buf;
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(gainVal || 0.03, t + 0.3);
+      g.gain.setValueAtTime(gainVal || 0.03, t + dur - 0.5);
+      g.gain.linearRampToValueAtTime(0.001, t + dur);
+      var f1 = audioCtx.createBiquadFilter();
+      f1.type = 'lowpass'; f1.frequency.setValueAtTime(350, t); f1.Q.setValueAtTime(1.5, t);
+      var f2 = audioCtx.createBiquadFilter();
+      f2.type = 'highpass'; f2.frequency.setValueAtTime(80, t);
+      o.connect(f1); f1.connect(f2); f2.connect(g); g.connect(masterGain);
+      o.start(t); o.stop(t + dur);
+    } catch(e) {}
+  }
+
+  // Cinematic brass — filtered square with resonance
+  function playBrass(freq, dur, t, gainVal) {
+    try {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = 'square'; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(gainVal || 0.02, t + 0.15);
+      g.gain.setValueAtTime(gainVal || 0.02, t + dur - 0.3);
+      g.gain.linearRampToValueAtTime(0.001, t + dur);
+      var f = audioCtx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.setValueAtTime(280, t); f.Q.setValueAtTime(3, t);
+      o.connect(f); f.connect(g); g.connect(masterGain);
+      o.start(t); o.stop(t + dur);
+    } catch(e) {}
+  }
+
+  // Cinematic whoosh — filtered noise with sweep
+  function playWhoosh(dur, t, peakFreq, gainVal) {
+    try {
+      var len = Math.ceil(audioCtx.sampleRate * dur);
+      var buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var wi = 0; wi < len; wi++) d[wi] = (Math.random() * 2 - 1) * Math.sin(wi / len * Math.PI * 2) * (1 - Math.abs(wi / len - 0.5) * 2);
+      var src = audioCtx.createBufferSource(); src.buffer = buf;
+      var g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(gainVal || 0.15, t + dur * 0.15);
+      g.gain.linearRampToValueAtTime(0.001, t + dur);
       var bp = audioCtx.createBiquadFilter();
-      bp.type = 'lowpass';
-      bp.frequency.setValueAtTime(freq || 300, t);
-      bp.frequency.exponentialRampToValueAtTime(20, t + dur);
-      var gn = audioCtx.createGain();
-      gn.gain.setValueAtTime(fadeIn ? 0.001 : (gainVal || 0.4), t);
-      if (fadeIn) gn.gain.linearRampToValueAtTime(gainVal || 0.4, t + dur * 0.15);
-      gn.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      src.connect(bp); bp.connect(gn); gn.connect(masterGain);
+      bp.type = 'bandpass'; bp.frequency.setValueAtTime(100, t);
+      bp.frequency.exponentialRampToValueAtTime(peakFreq || 800, t + dur * 0.6);
+      bp.frequency.exponentialRampToValueAtTime(200, t + dur);
+      bp.Q.setValueAtTime(2, t);
+      src.connect(bp); bp.connect(g); g.connect(masterGain);
       src.start(t); src.stop(t + dur);
     } catch(e) {}
   }
 
-  // ===== SCHEDULE ALL AUDIO =====
-  var T = audioCtx.currentTime + 0.15;
-
-  // SCENE 1: Heartbeat (0-2s) — deep, reverbed thump with sub-harmonic
-  playTone(55, 0.45, T, 'sine', 0.28);
-  playTone(75, 0.25, T + 0.05, 'sine', 0.14);
-  playTone(28, 0.5, T, 'sine', 0.12); // sub layer
-  playTone(55, 0.4, T + 0.5, 'sine', 0.24);
-  playTone(75, 0.22, T + 0.55, 'sine', 0.12);
-  playTone(28, 0.45, T + 0.5, 'sine', 0.1);
-  playTone(55, 0.35, T + 1.0, 'sine', 0.2);
-  playTone(75, 0.2, T + 1.05, 'sine', 0.1);
-  playTone(55, 0.35, T + 1.5, 'sine', 0.18);
-  playTone(75, 0.18, T + 1.55, 'sine', 0.08);
-
-  // Ambient pad (0-12s) — warm detuned sawtooth with slow LFO
-  for (var padi = 0; padi < 3; padi++) {
-    var padO = audioCtx.createOscillator();
-    var padG = audioCtx.createGain();
-    padO.type = 'sawtooth';
-    padO.frequency.setValueAtTime([65.41, 65.41, 130.81][padi], T);
-    if (padi < 2) padO.detune.setValueAtTime(padi === 0 ? -5 : 5, T);
-    padG.gain.setValueAtTime(0.005, T);
-    padG.gain.linearRampToValueAtTime(0.035 - padi * 0.01, T + 2);
-    padG.gain.setValueAtTime(0.035 - padi * 0.01, T + 10);
-    padG.gain.linearRampToValueAtTime(0.001, T + 12.5);
-    var padF = audioCtx.createBiquadFilter();
-    padF.type = 'lowpass'; padF.frequency.setValueAtTime(250 - padi * 50, T);
-    padO.connect(padF); padF.connect(padG); padG.connect(masterGain);
-    padO.start(T); padO.stop(T + 12.5);
+  // Cinematic boom — multi-layer sub impact
+  function playBoom(t) {
+    playSub(25, 3, t, 0.4);
+    playSub(35, 2.5, t + 0.05, 0.3);
+    playSub(50, 2, t + 0.1, 0.2);
+    // Noise crash
+    try {
+      var len = Math.ceil(audioCtx.sampleRate * 2);
+      var buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var ni = 0; ni < len; ni++) d[ni] = (Math.random() * 2 - 1) * Math.pow(1 - ni / len, 2);
+      var src = audioCtx.createBufferSource(); src.buffer = buf;
+      var g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+      var f1 = audioCtx.createBiquadFilter();
+      f1.type = 'lowpass'; f1.frequency.setValueAtTime(250, t);
+      f1.frequency.exponentialRampToValueAtTime(30, t + 1.5);
+      var f2 = audioCtx.createBiquadFilter();
+      f2.type = 'highpass'; f2.frequency.setValueAtTime(15, t);
+      src.connect(f1); f1.connect(f2); f2.connect(g); g.connect(masterGain);
+      src.start(t); src.stop(t + 2);
+    } catch(e) {}
   }
-  // Sub bass pad
-  var subPad = audioCtx.createOscillator();
-  var subPadG = audioCtx.createGain();
-  subPad.type = 'sine'; subPad.frequency.setValueAtTime(32.7, T);
-  subPadG.gain.setValueAtTime(0.005, T);
-  subPadG.gain.linearRampToValueAtTime(0.07, T + 3);
-  subPadG.gain.linearRampToValueAtTime(0.001, T + 12.5);
-  subPad.connect(subPadG); subPadG.connect(masterGain);
-  subPad.start(T); subPad.stop(T + 12.5);
 
-  // SCENE 2: Build-up (2-5s) — orchestral strings + brass crescendo
-  var noteTimes = [2.0, 2.8, 3.5, 4.2, 4.8];
+  // Cinematic shimmer — filtered high harmonics with sparkle
+  function playShimmer(note, t, dur, gainVal) {
+    try {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(note, t);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(gainVal || 0.025, t + 0.05);
+      g.gain.linearRampToValueAtTime(0.001, t + dur);
+      var f = audioCtx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.setValueAtTime(note, t); f.Q.setValueAtTime(15, t);
+      o.connect(f); f.connect(g); g.connect(masterGain);
+      o.start(t); o.stop(t + dur);
+      // Add a filtered noise sparkle tail
+      var nLen2 = Math.ceil(audioCtx.sampleRate * dur * 0.5);
+      var nBuf2 = audioCtx.createBuffer(1, nLen2, audioCtx.sampleRate);
+      var nD2 = nBuf2.getChannelData(0);
+      for (var sni = 0; sni < nLen2; sni++) nD2[sni] = (Math.random() * 2 - 1) * (1 - sni / nLen2);
+      var ns = audioCtx.createBufferSource(); ns.buffer = nBuf2;
+      var ng2 = audioCtx.createGain();
+      ng2.gain.setValueAtTime(0.001, t + dur * 0.5);
+      ng2.gain.linearRampToValueAtTime(gainVal * 0.3 || 0.008, t + dur * 0.6);
+      ng2.gain.linearRampToValueAtTime(0.001, t + dur);
+      var nf2 = audioCtx.createBiquadFilter();
+      nf2.type = 'bandpass'; nf2.frequency.setValueAtTime(note * 1.5, t); nf2.Q.setValueAtTime(8, t);
+      ns.connect(nf2); nf2.connect(ng2); ng2.connect(masterGain);
+      ns.start(t + dur * 0.5); ns.stop(t + dur);
+    } catch(e) {}
+  }
+
+  // Setup reverb
+  createReverb(masterGain);
+
+  // ===== SCHEDULE ALL AUDIO =====
+  var T = audioCtx.currentTime + 0.2;
+
+  // === SCENE 1 (0-2s): Deep heartbeat ===
+  playThump(55, 0.5, T, 0.2);
+  playThump(55, 0.45, T + 0.55, 0.17);
+  playThump(55, 0.4, T + 1.1, 0.14);
+  playThump(55, 0.35, T + 1.6, 0.12);
+
+  // Ambient pad — dark warm triangle voices
+  startPad([32.7, 65.41, 98.12, 130.81], T, 12.5);
+
+  // === SCENE 2 (2-5s): Orchestral build ===
+  var noteTimes = [2.0, 2.7, 3.4, 4.1, 4.7];
   var noteFreqs = [261.63, 329.63, 392.0, 523.25, 659.25];
   for (var ni = 0; ni < noteTimes.length; ni++) {
-    // String layer (sawtooth)
-    playTone(noteFreqs[ni], 1.8, T + noteTimes[ni], 'sawtooth', 0.025 + ni * 0.012);
-    playTone(noteFreqs[ni] * 2, 1.8, T + noteTimes[ni], 'sawtooth', 0.015 + ni * 0.008);
-    // Cello layer (sine sub)
-    playTone(noteFreqs[ni] * 0.5, 1.8, T + noteTimes[ni], 'sine', 0.04 + ni * 0.015);
-    // Brass layer (filtered square)
-    if (ni > 1) {
-      var brO = audioCtx.createOscillator();
-      var brG = audioCtx.createGain();
-      brO.type = 'square';
-      brO.frequency.setValueAtTime(noteFreqs[ni] * 2, T + noteTimes[ni]);
-      brG.gain.setValueAtTime(0.012 + (ni-2) * 0.01, T + noteTimes[ni]);
-      brG.gain.exponentialRampToValueAtTime(0.001, T + noteTimes[ni] + 1.2);
-      var brF = audioCtx.createBiquadFilter();
-      brF.type = 'lowpass'; brF.frequency.setValueAtTime(600 + ni * 200, T + noteTimes[ni]);
-      brO.connect(brF); brF.connect(brG); brG.connect(masterGain);
-      brO.start(T + noteTimes[ni]); brO.stop(T + noteTimes[ni] + 1.2);
+    playString(noteFreqs[ni], 1.8, T + noteTimes[ni], 0.025 + ni * 0.012);
+    playString(noteFreqs[ni] * 2, 1.8, T + noteTimes[ni], 0.012 + ni * 0.006);
+    playSub(noteFreqs[ni] * 0.5, 2, T + noteTimes[ni], 0.03 + ni * 0.01);
+    if (ni > 1) playBrass(noteFreqs[ni] * 2, 1.2, T + noteTimes[ni], 0.012 + (ni-2) * 0.008);
+  }
+
+  // Ethereal reverse noise (3-6s) — dark filtered
+  try {
+    var wLen = Math.ceil(audioCtx.sampleRate * 3);
+    var wBuf = audioCtx.createBuffer(1, wLen, audioCtx.sampleRate);
+    var wD = wBuf.getChannelData(0);
+    for (var wi2 = 0; wi2 < wD.length; wi2++) {
+      var wp2 = wi2 / wD.length;
+      wD[wi2] = (Math.random() * 2 - 1) * Math.sin(wp2 * Math.PI * 4) * (1 - Math.abs(wp2 - 0.5) * 2);
     }
-  }
+    var wSrc = audioCtx.createBufferSource(); wSrc.buffer = wBuf;
+    wSrc.playbackRate.setValueAtTime(-1, T + 3);
+    var wG = audioCtx.createGain();
+    wG.gain.setValueAtTime(0.001, T + 3);
+    wG.gain.linearRampToValueAtTime(0.06, T + 4.5);
+    wG.gain.linearRampToValueAtTime(0.001, T + 6);
+    var wFi = audioCtx.createBiquadFilter();
+    wFi.type = 'bandpass'; wFi.frequency.setValueAtTime(600, T + 3); wFi.Q.setValueAtTime(2, T + 3);
+    wSrc.connect(wFi); wFi.connect(wG); wG.connect(masterGain);
+    wSrc.start(T + 3); wSrc.stop(T + 6);
+  } catch(e) {}
 
-  // Reverse whisper (3-6s) — ethereal, reversed filtered noise
-  var wLen = Math.ceil(audioCtx.sampleRate * 3);
-  var wBuf = audioCtx.createBuffer(1, wLen, audioCtx.sampleRate);
-  var wD = wBuf.getChannelData(0);
-  for (var wi2 = 0; wi2 < wD.length; wi2++) {
-    var wp2 = wi2 / wD.length;
-    wD[wi2] = (Math.random() * 2 - 1) * (1 - Math.abs(wp2 - 0.5) * 2) * Math.sin(wp2 * Math.PI * 8) * (1 - Math.pow(Math.abs(wp2 - 0.5) * 2, 3));
-  }
-  var wSrc = audioCtx.createBufferSource();
-  wSrc.buffer = wBuf;
-  wSrc.playbackRate.setValueAtTime(-1, T + 3);
-  var wG = audioCtx.createGain();
-  wG.gain.setValueAtTime(0.001, T + 3);
-  wG.gain.linearRampToValueAtTime(0.1, T + 4.5);
-  wG.gain.linearRampToValueAtTime(0.001, T + 6);
-  var wFi = audioCtx.createBiquadFilter();
-  wFi.type = 'bandpass'; wFi.frequency.setValueAtTime(1400, T + 3); wFi.Q.setValueAtTime(4, T + 3);
-  wSrc.connect(wFi); wFi.connect(wG); wG.connect(masterGain);
-  wSrc.start(T + 3); wSrc.stop(T + 6);
+  // === SCENE 3 (5-8s): Tension riser + whoosh ===
+  try {
+    var rOsc = audioCtx.createOscillator();
+    var rGain = audioCtx.createGain();
+    rOsc.type = 'sine';
+    rOsc.frequency.setValueAtTime(60, T + 5);
+    rOsc.frequency.exponentialRampToValueAtTime(1200, T + 7.5);
+    rGain.gain.setValueAtTime(0.001, T + 5);
+    rGain.gain.linearRampToValueAtTime(0.04, T + 6);
+    rGain.gain.linearRampToValueAtTime(0.001, T + 8);
+    var rF = audioCtx.createBiquadFilter();
+    rF.type = 'lowpass'; rF.frequency.setValueAtTime(400, T + 5);
+    rF.frequency.linearRampToValueAtTime(3000, T + 7.5);
+    rOsc.connect(rF); rF.connect(rGain); rGain.connect(masterGain);
+    rOsc.start(T + 5); rOsc.stop(T + 8);
+  } catch(e) {}
 
-  // Synth riser (5-8s) — FM sweep
-  playFMSweep(80, 2000, 3, T + 5, 0.07);
-  // Digital glitch texture
-  for (var gli = 0; gli < 6; gli++) playNoise(0.06, T + 5.5 + gli * 0.4, 3000 + gli * 1000, 0.035, true);
+  playWhoosh(1.5, T + 6.5, 1200, 0.12);
 
-  // SCENE 3: Whoosh (7-8s)
-  playNoise(1.3, T + 7, 2500, 0.3, true);
+  // === SCENE 4 (8-9s): BOOM ===
+  playBoom(T + 8);
 
-  // SCENE 4: Bass drop + BOOM (8-8.5s) — cinematic impact
-  playNoise(1.8, T + 8, 120, 0.5, false);
-  playTone(28, 2.5, T + 8, 'sine', 0.45);
-  playTone(42, 1.5, T + 8, 'sine', 0.3);
-  playTone(56, 1.0, T + 8, 'sine', 0.2);
+  // === SCENE 5 (9-11s): Logo reveal + shimmer ===
+  playShimmer(880, T + 8.8, 1.8, 0.03);
+  playShimmer(1108.73, T + 8.95, 1.6, 0.025);
+  playShimmer(1318.51, T + 9.1, 1.4, 0.02);
+  playShimmer(1760, T + 9.25, 1.2, 0.015);
 
-  // SCENE 5: Voice shimmer + logo reveal (8.5-11s)
-  var shimmerNotes = [880, 1108.73, 1318.51, 1760];
-  for (var si = 0; si < shimmerNotes.length; si++) {
-    playTone(shimmerNotes[si], 1.5, T + 8.8 + si * 0.12, 'sine', 0.045 + si * 0.01);
-    playTone(shimmerNotes[si] * 1.005, 1.0, T + 8.8 + si * 0.12, 'sine', 0.025 + si * 0.005);
-    playTone(shimmerNotes[si] * 0.5, 0.8, T + 8.8 + si * 0.12, 'sine', 0.015);
-  }
-  // Vocal harmonic — filtered sawtooth with bandpass at formant frequencies
-  var vOsc = audioCtx.createOscillator();
-  var vGain = audioCtx.createGain();
-  vOsc.type = 'sawtooth'; vOsc.frequency.setValueAtTime(440, T + 9);
-  vGain.gain.setValueAtTime(0.001, T + 9);
-  vGain.gain.linearRampToValueAtTime(0.045, T + 9.5);
-  vGain.gain.linearRampToValueAtTime(0.001, T + 11);
-  var vF1 = audioCtx.createBiquadFilter();
-  vF1.type = 'bandpass'; vF1.frequency.setValueAtTime(800, T + 9); vF1.Q.setValueAtTime(8, T + 9);
-  var vF2 = audioCtx.createBiquadFilter();
-  vF2.type = 'bandpass'; vF2.frequency.setValueAtTime(2400, T + 9); vF2.Q.setValueAtTime(10, T + 9);
-  vOsc.connect(vF1); vF1.connect(vF2); vF2.connect(vGain); vGain.connect(masterGain);
-  vOsc.start(T + 9); vOsc.stop(T + 11);
+  // Vocal-like dark pad
+  try {
+    var vO = audioCtx.createOscillator();
+    var vG = audioCtx.createGain();
+    vO.type = 'triangle'; vO.frequency.setValueAtTime(220, T + 9);
+    vG.gain.setValueAtTime(0.001, T + 9);
+    vG.gain.linearRampToValueAtTime(0.015, T + 9.5);
+    vG.gain.linearRampToValueAtTime(0.001, T + 11);
+    var vF = audioCtx.createBiquadFilter();
+    vF.type = 'bandpass'; vF.frequency.setValueAtTime(400, T + 9); vF.Q.setValueAtTime(4, T + 9);
+    vO.connect(vF); vF.connect(vG); vG.connect(masterGain);
+    vO.start(T + 9); vO.stop(T + 11);
+  } catch(e) {}
 
-  // Orchestral hit (10s)
-  var orchFreqs = [523.25, 659.25, 783.99, 1046.5, 1318.51];
-  for (var oi = 0; oi < orchFreqs.length; oi++) {
-    playTone(orchFreqs[oi], 0.8, T + 10, 'sawtooth', 0.035 - oi * 0.004);
-    playTone(orchFreqs[oi] * 0.5, 0.6, T + 10, 'sine', 0.025 - oi * 0.003);
-  }
+  // Orchestral hit
+  var orch = [523.25, 659.25, 783.99, 1046.5];
+  for (var oi = 0; oi < orch.length; oi++) playString(orch[oi], 0.6, T + 10, 0.02 - oi * 0.003);
 
-  // SCENE 6: Heartbeat fade + final ambient decay (11-12s)
-  playTone(50, 0.35, T + 11.2, 'sine', 0.06);
-  playTone(70, 0.2, T + 11.25, 'sine', 0.03);
+  // === SCENE 6 (11-12s): Heartbeat fade ===
+  playThump(50, 0.35, T + 11.2, 0.08);
+  playThump(50, 0.3, T + 11.7, 0.05);
 
   // ===== PARTICLE SYSTEM =====
   var particles = [];
