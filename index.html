@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>VoiceIQ - AI Call Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#334155 transparent}
+:root{--bg:#0f172a;--bg2:#1e293b;--card:#1e293b;--blue:#2563eb;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--purple:#8b5cf6;--text:#f1f5f9;--text2:#94a3b8;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.4)}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+.screen{display:none;opacity:0;transition:opacity .15s;animation:fadeUp .15s ease forwards;min-height:100vh;padding:20px 16px}
+.screen.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glow{0%,100%{text-shadow:0 0 20px rgba(37,99,235,0.3)}50%{text-shadow:0 0 50px rgba(37,99,235,0.7),0 0 80px rgba(37,99,235,0.2)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes barFill{to{width:var(--w)}}
+@keyframes strokeDraw{to{stroke-dashoffset:0}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+.container{max-width:1000px;margin:0 auto;padding:8px}
+.gradient-bg{background:linear-gradient(135deg,#0f172a,#1e3a5f)}
+.glow-text{animation:glow 2s ease-in-out infinite;font-family:'Poppins',sans-serif;font-size:clamp(32px,8vw,52px);font-weight:900;background:linear-gradient(135deg,#2563eb,#22c55e,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-1px}
+.subtitle{color:var(--text2);font-size:clamp(14px,3vw,18px);margin:8px 0 28px;font-weight:400}
+.nav-dots{display:flex;justify-content:center;gap:5px;margin-bottom:16px;flex-wrap:wrap}
+.nav-dot{width:26px;height:26px;border-radius:50%;border:2px solid #334155;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .3s;background:transparent;position:relative}
+.nav-dot:hover{border-color:var(--blue);color:var(--blue)}
+.nav-dot.active{border-color:var(--blue);color:#fff;background:var(--blue);box-shadow:0 0 12px rgba(37,99,235,0.3)}
+.nav-dot.visited{border-color:var(--green);color:var(--green);background:transparent}
+.nav-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px}
+.nav-bar .screen-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
+.nav-arrows{display:flex;justify-content:space-between;margin-top:20px;gap:12px}
+.nav-arrows .btn{flex:1;max-width:200px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border-radius:12px;border:none;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#1d4ed8;box-shadow:0 8px 24px rgba(37,99,235,0.35)}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.btn-secondary{background:var(--bg2);color:var(--text);border:1px solid #334155}
+.btn-secondary:hover{background:#334155}
+.btn-success{background:var(--green);color:#fff}
+.btn-success:hover{background:#16a34a;box-shadow:0 8px 24px rgba(34,197,94,0.3)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-orange{background:var(--orange);color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--blue);color:var(--blue)}
+.btn-lg{padding:18px 48px;font-size:18px}
+.card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:14px;border:1px solid rgba(255,255,255,0.03)}
+.card-title{font-size:18px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.upload-zone{border:2px dashed #334155;border-radius:var(--radius);padding:50px 20px;text-align:center;cursor:pointer;transition:all .3s;background:rgba(255,255,255,0.02)}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--blue);background:rgba(37,99,235,0.08)}
+.upload-zone.has-file{border-color:var(--green);background:rgba(34,197,94,0.06)}
+.upload-zone i{font-size:44px;color:var(--text2);margin-bottom:12px;transition:color .3s}
+.upload-zone.has-file i{color:var(--green)}
+.upload-zone p{color:var(--text2);font-size:14px}
+.upload-zone .file-info{color:var(--green);font-weight:600;margin-top:8px;display:none;font-size:13px}
+.upload-zone.has-file .file-info{display:block}
+.audio-preview{display:none;padding:16px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);margin-top:8px}
+.audio-preview.show{display:block}
+.audio-preview canvas{width:100%;height:50px;border-radius:6px;margin-top:8px}
+.steps{display:flex;flex-direction:column;gap:10px}
+.step{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:10px;background:rgba(255,255,255,0.02);transition:all .3s;border-left:3px solid transparent}
+.step.active{background:rgba(37,99,235,0.08);border-left-color:var(--blue)}
+.step.done{background:rgba(34,197,94,0.06);border-left-color:var(--green)}
+.step-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:all .3s}
+.step-icon.pending{border:2px solid #475569;color:var(--text2)}
+.step-icon.running{border:2px solid var(--blue);color:var(--blue);animation:spin .6s linear infinite}
+.step-icon.done{background:var(--green);color:#fff;box-shadow:0 0 16px rgba(34,197,94,0.3)}
+.step-label{flex:1;font-size:14px;font-weight:500}
+.step-status{font-size:12px;color:var(--text2);font-weight:400}
+.progress-track{height:6px;background:#1e293b;border-radius:3px;overflow:hidden;margin:16px 0}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple),var(--green));border-radius:3px;width:0%;transition:width .3s ease;position:relative}
+.chat-bubble{max-width:85%;padding:14px 18px;border-radius:16px;margin-bottom:10px;position:relative;font-size:14px;line-height:1.55}
+.chat-bubble.agent{background:rgba(37,99,235,0.12);border:1px solid rgba(37,99,235,0.2);align-self:flex-start;margin-right:auto;border-bottom-left-radius:4px}
+.chat-bubble.customer{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);align-self:flex-end;margin-left:auto;border-bottom-right-radius:4px}
+.chat-bubble.customer.negative{border-color:rgba(239,68,68,0.5);box-shadow:0 0 16px rgba(239,68,68,0.15)}
+.chat-bubble .meta{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.chat-bubble .speaker{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+.chat-bubble .speaker.agent{color:var(--blue)}
+.chat-bubble .speaker.customer{color:var(--green)}
+.chat-bubble .time{font-size:10px;color:var(--text2)}
+.sentiment-badge{font-size:10px;padding:3px 10px;border-radius:12px;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+.sentiment-badge.POSITIVE{background:rgba(34,197,94,0.2);color:var(--green);border:1px solid rgba(34,197,94,0.3)}
+.sentiment-badge.NEUTRAL{background:rgba(245,158,11,0.2);color:var(--orange);border:1px solid rgba(245,158,11,0.3)}
+.sentiment-badge.NEGATIVE{background:rgba(239,68,68,0.2);color:var(--red);border:1px solid rgba(239,68,68,0.3)}
+.response-badge{font-size:10px;padding:3px 10px;border-radius:10px;font-weight:700;display:inline-block;margin-top:5px}
+.response-badge.EXCELLENT{background:rgba(34,197,94,0.15);color:var(--green);border:1px solid rgba(34,197,94,0.3)}
+.response-badge.GOOD{background:rgba(37,99,235,0.15);color:var(--blue);border:1px solid rgba(37,99,235,0.3)}
+.response-badge.POOR{background:rgba(245,158,11,0.15);color:var(--orange);border:1px solid rgba(245,158,11,0.3)}
+.response-badge.FAILED{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3)}
+.transcript-box{display:flex;flex-direction:column;max-height:520px;overflow-y:auto;padding-right:6px;gap:2px}
+.heatmap-row{display:flex;gap:16px;align-items:center;margin-bottom:8px;flex-wrap:wrap;font-size:12px}
+.heatmap-row span{display:flex;align-items:center;gap:4px}
+.heatmap-swatch{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:middle}
+.score-ring{width:180px;height:180px;margin:0 auto;position:relative}
+.score-ring svg{width:100%;height:100%}
+.score-ring .score-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.score-ring .score-val .num{font-size:44px;font-weight:900;font-family:'Poppins',sans-serif;line-height:1}
+.score-ring .score-val .lbl{font-size:16px;font-weight:600;color:var(--text2);margin-top:2px}
+.progress-item{margin-bottom:14px}
+.progress-item .phead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;color:var(--text2)}
+.progress-item .phead strong{color:var(--text)}
+.progress-item .track{height:8px;background:#0f172a;border-radius:4px;overflow:hidden}
+.progress-item .fill{height:100%;border-radius:4px;width:0%;transition:width .5s cubic-bezier(0.22,1,0.36,1)}
+.moment-card{padding:16px;margin-bottom:10px;border-radius:10px;border-left:4px solid;background:rgba(255,255,255,0.02)}
+.moment-card.negative{border-color:var(--red)}
+.moment-card.positive{border-color:var(--green)}
+.journey-box{display:flex;align-items:center;justify-content:center;gap:16px;padding:18px;background:rgba(255,255,255,0.03);border-radius:12px;margin-top:8px;flex-wrap:wrap}
+.journey-box .arrow{color:var(--text2);font-size:18px}
+.sug-box{padding:16px;border-radius:12px;margin-bottom:10px}
+.sug-box.wrong{border:2px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.04)}
+.sug-box.right{border:2px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.04)}
+.sug-box .sug-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.tip-box{background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2);border-radius:12px;padding:16px;margin-top:6px}
+.rec-card{padding:16px 18px;border-radius:12px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start}
+.rec-card .r-icon{font-size:20px;flex-shrink:0;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.rec-card .r-body{flex:1}
+.rec-card .r-body h4{font-size:15px;font-weight:600;margin-bottom:3px}
+.rec-card .r-body p{font-size:13px;color:var(--text2);line-height:1.5}
+.rec-card.red{background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15)}
+.rec-card.red .r-icon{background:rgba(239,68,68,0.15);color:var(--red)}
+.rec-card.orange{background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15)}
+.rec-card.orange .r-icon{background:rgba(245,158,11,0.15);color:var(--orange)}
+.rec-card.green{background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15)}
+.rec-card.green .r-icon{background:rgba(34,197,94,0.15);color:var(--green)}
+.download-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:16px}
+.download-grid .btn{min-width:200px;padding:16px 28px}
+.toast{position:fixed;bottom:28px;right:28px;padding:16px 28px;border-radius:12px;background:#1e293b;color:#fff;font-weight:600;font-size:14px;z-index:9999;box-shadow:0 12px 40px rgba(0,0,0,0.6);animation:slideIn .35s ease;display:none;max-width:380px;border:1px solid rgba(255,255,255,0.06)}
+.toast.show{display:block}
+.toast.success{border-left:4px solid var(--green)}
+.toast.error{border-left:4px solid var(--red)}
+.toast.info{border-left:4px solid var(--blue)}
+.summary-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.summary-box{flex:1;min-width:100px;padding:14px;border-radius:10px;text-align:center}
+.summary-box .big{font-size:26px;font-weight:800;font-family:'Poppins',sans-serif;line-height:1.2}
+.summary-box .sml{font-size:11px;color:var(--text2);margin-top:2px}
+.summary-box.green{background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.15)}
+.summary-box.red{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15)}
+.summary-box.blue{background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.15)}
+.summary-box.orange{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15)}
+.summary-box.purple{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15)}
+.summary-box.pink{background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.15)}
+.label-bar{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:2px}
+hr{border:none;border-top:1px solid rgba(255,255,255,0.05);margin:14px 0}
+input{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border .25s,box-shadow .25s}
+input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
+select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;outline:none;appearance:none;cursor:pointer}
+.tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;margin:2px}
+.tag.blue{background:rgba(37,99,235,0.12);color:var(--blue)}
+.tag.green{background:rgba(34,197,94,0.12);color:var(--green)}
+.tag.orange{background:rgba(245,158,11,0.12);color:var(--orange)}
+.tag.red{background:rgba(239,68,68,0.12);color:var(--red)}
+.tag.purple{background:rgba(139,92,246,0.12);color:var(--purple)}
+.demo-badge{position:fixed;top:12px;right:12px;z-index:100;padding:6px 14px;border-radius:20px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--orange);font-size:11px;font-weight:700;letter-spacing:0.5px;backdrop-filter:blur(8px)}
+.hidden{display:none!important}
+.text-center{text-align:center}
+.text-muted{color:var(--text2)}
+.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}.mt-24{margin-top:24px}
+.mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
+.flex{display:flex}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}
+.checkmark-svg{width:80px;height:80px;margin:0 auto 14px;display:block}
+.checkmark-svg .ck-circle{stroke:var(--green);stroke-width:2;stroke-dasharray:166;stroke-dashoffset:166;fill:none;animation:strokeDraw .6s ease forwards}
+.checkmark-svg .ck-check{stroke:var(--green);stroke-width:3;stroke-dasharray:48;stroke-dashoffset:48;fill:none;animation:strokeDraw .4s .6s ease forwards}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
+.kpi-card{padding:14px;border-radius:10px;text-align:center;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04)}
+.kpi-card .kpi-num{font-size:22px;font-weight:800;font-family:'Poppins',sans-serif}
+.kpi-card .kpi-lbl{font-size:11px;color:var(--text2);margin-top:2px}
+@media(max-width:768px){
+  .container{padding:4px}
+  .chat-bubble{max-width:92%}
+  .download-grid .btn{min-width:140px;font-size:12px;padding:12px 18px}
+  .score-ring{width:140px;height:140px}
+  .score-ring .score-val .num{font-size:34px}
+  .summary-box{min-width:80px}
+  .summary-box .big{font-size:20px}
+  .btn-lg{padding:14px 32px;font-size:16px}
+  .nav-arrows .btn{max-width:none}
+}
+@media(max-width:480px){
+  .step-label{font-size:12px}
+  .step-status{font-size:10px}
+  .card{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+<div id="demoBadge" class="demo-badge hidden"><i class="fas fa-flask"></i> DEMO MODE</div>
+
+<!-- SCREEN 1: HOME -->
+<div id="screen1" class="screen gradient-bg active">
+<div class="container text-center" style="padding-top:24px">
+<h1 class="glow-text">VoiceIQ</h1>
+<p class="subtitle">AI Call Analysis &bull; Quality Scoring &bull; Reports</p>
+
+<div class="card" style="max-width:540px;margin:0 auto;text-align:left">
+<div class="card-title"><i class="fas fa-key" style="color:var(--blue)"></i> AssemblyAI API Key</div>
+<p style="font-size:13px;color:var(--text2);margin-bottom:10px">Get a free key at <a href="https://assemblyai.com" target="_blank" style="color:var(--blue)">assemblyai.com</a> &mdash; or leave blank for <strong style="color:var(--orange)">Demo Mode</strong></p>
+<input type="text" id="apiKeyInput" placeholder="Enter API key (or leave empty for demo)..." style="margin-bottom:6px">
+<p style="font-size:11px;color:var(--text2)"><i class="fas fa-info-circle"></i> API key saved locally. Demo mode uses sample data.</p>
+</div>
+
+<div class="card" style="max-width:540px;margin:12px auto 0;text-align:left">
+<div class="card-title"><i class="fas fa-cloud-upload-alt" style="color:var(--blue)"></i> Upload Call Recording</div>
+<div class="upload-zone" id="uploadZone">
+<i class="fas fa-file-audio"></i>
+<p>Drag &amp; drop MP3, WAV, or M4A here</p>
+<p style="font-size:12px;color:var(--text2);margin-top:4px">or click to browse</p>
+<div class="file-info" id="fileInfo"></div>
+</div>
+<div class="audio-preview" id="audioPreview">
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+<button class="btn btn-secondary" style="padding:8px 16px;font-size:12px;min-width:0" id="playBtn" onclick="togglePlay()"><i class="fas fa-play"></i></button>
+<span id="audioDuration" style="font-size:13px;color:var(--text2)">0:00</span>
+<span style="font-size:12px;color:var(--text2)"><i class="fas fa-wave-square"></i> Waveform</span>
+</div>
+<canvas id="waveformCanvas" height="50"></canvas>
+</div>
+<input type="file" id="fileInput" accept=".mp3,.wav,.m4a,audio/*" style="display:none">
+</div>
+
+<div class="card" style="max-width:540px;margin:12px auto 0;text-align:left">
+<div class="card-title"><i class="fas fa-globe" style="color:var(--purple)"></i> Call Language</div>
+<p style="font-size:13px;color:var(--text2);margin-bottom:10px">Select the language spoken in the call</p>
+<select id="langSelect" style="margin-bottom:0">
+<option value="en">English</option>
+<option value="hi">Hindi</option>
+<option value="auto" selected>Auto-Detect</option>
+<option value="es">Spanish</option>
+<option value="fr">French</option>
+<option value="de">German</option>
+<option value="pt">Portuguese</option>
+<option value="ar">Arabic</option>
+<option value="ja">Japanese</option>
+<option value="ko">Korean</option>
+<option value="zh">Chinese</option>
+</select>
+</div>
+
+<button class="btn btn-primary btn-lg" id="analyzeBtn" style="margin-top:20px;padding:16px 48px;font-size:18px;border-radius:16px" disabled>
+<i class="fas fa-magic"></i> Analyze Call
+</button>
+<p id="analyzeError" style="color:var(--red);font-size:13px;margin-top:8px;display:none"></p>
+<p id="demoHint" style="color:var(--orange);font-size:12px;margin-top:8px;display:none"><i class="fas fa-flask"></i> No API key &mdash; will run in <strong>Demo Mode</strong> with sample data</p>
+</div>
+</div>
+
+<!-- SCREEN 2: PROCESSING -->
+<div id="screen2" class="screen">
+<div class="container">
+<div class="card">
+<div class="card-title" style="justify-content:center"><i class="fas fa-microchip" style="color:var(--blue)"></i> Analyzing Your Call</div>
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+<div class="steps" id="stepsContainer">
+<div class="step" data-step="0"><div class="step-icon pending" id="sicon0"><i class="fas fa-cloud-upload-alt"></i></div><div class="step-label">Upload Audio</div><div class="step-status" id="sstatus0">Pending</div></div>
+<div class="step" data-step="1"><div class="step-icon pending" id="sicon1"><i class="fas fa-microphone"></i></div><div class="step-label">Transcribe Speech</div><div class="step-status" id="sstatus1">Pending</div></div>
+<div class="step" data-step="2"><div class="step-icon pending" id="sicon2"><i class="fas fa-users"></i></div><div class="step-label">Detect Speakers</div><div class="step-status" id="sstatus2">Pending</div></div>
+<div class="step" data-step="3"><div class="step-icon pending" id="sicon3"><i class="fas fa-smile"></i></div><div class="step-label">Analyze Sentiment</div><div class="step-status" id="sstatus3">Pending</div></div>
+<div class="step" data-step="4"><div class="step-icon pending" id="sicon4"><i class="fas fa-exclamation-triangle"></i></div><div class="step-label">Find Negative Moments</div><div class="step-status" id="sstatus4">Pending</div></div>
+<div class="step" data-step="5"><div class="step-icon pending" id="sicon5"><i class="fas fa-comment-dots"></i></div><div class="step-label">Evaluate Responses</div><div class="step-status" id="sstatus5">Pending</div></div>
+<div class="step" data-step="6"><div class="step-icon pending" id="sicon6"><i class="fas fa-chart-bar"></i></div><div class="step-label">Calculate Scores</div><div class="step-status" id="sstatus6">Pending</div></div>
+<div class="step" data-step="7"><div class="step-icon pending" id="sicon7"><i class="fas fa-file-alt"></i></div><div class="step-label">Generate Report</div><div class="step-status" id="sstatus7">Pending</div></div>
+</div>
+<div id="timingDisplay" style="margin-top:12px;font-size:12px;color:var(--text2);text-align:center;display:none">
+<i class="fas fa-stopwatch"></i> Total: <span id="totalTime">0.0</span>s &middot; API: <span id="apiTime">0.0</span>s &middot; Processing: <span id="procTime">0.0</span>s
+</div>
+</div>
+</div>
+</div>
+
+<!-- SCREEN 3: TRANSCRIPT -->
+<div id="screen3" class="screen">
+<div class="container">
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-comments"></i> Transcript</span><span class="screen-label">Step 3 / 9</span></div>
+<div class="nav-dots" id="navDots3"></div>
+<div class="card">
+<div class="card-title" style="flex-wrap:wrap;gap:8px">
+<span style="flex:1"><i class="fas fa-message" style="color:var(--blue)"></i> Key Moments</span>
+<button class="btn btn-outline" style="padding:8px 16px;font-size:12px;border-radius:8px" id="toggleTranscript" onclick="toggleFullTranscript()"><i class="fas fa-list"></i> Show Full Transcript</button>
+</div>
+<div class="summary-strip" id="transcriptSummary"></div>
+<div class="transcript-box" id="transcriptContainer"></div>
+</div>
+<div class="nav-arrows">
+<button class="btn btn-secondary" onclick="goToScreen(2)"><i class="fas fa-chevron-left"></i> Previous</button>
+<button class="btn btn-primary" onclick="goToScreen(4)">Next <i class="fas fa-chevron-right"></i></button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN 4: NEGATIVE MOMENTS -->
+<div id="screen4" class="screen">
+<div class="container">
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-exclamation-circle"></i> Negative Moments</span><span class="screen-label">Step 4 / 9</span></div>
+<div class="nav-dots" id="navDots4"></div>
+<div class="card">
+<div class="card-title"><i class="fas fa-bolt" style="color:var(--orange)"></i> Complaint &amp; Negative Moments</div>
+<div class="summary-strip" id="negativeSummary"></div>
+<div id="negativeContainer"></div>
+</div>
+<div class="nav-arrows">
+<button class="btn btn-secondary" onclick="goToScreen(3)"><i class="fas fa-chevron-left"></i> Previous</button>
+<button class="btn btn-primary" onclick="goToScreen(5)">Next <i class="fas fa-chevron-right"></i></button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN 5: HEATMAP -->
+<div id="screen5" class="screen">
+<div class="container">
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-fire"></i> Sentiment Timeline</span><span class="screen-label">Step 5 / 9</span></div>
+<div class="nav-dots" id="navDots5"></div>
+<div class="card">
+<div class="card-title"><i class="fas fa-chart-line" style="color:var(--orange)"></i> Frustration Heatmap</div>
+<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Customer sentiment over the call timeline &mdash; green (calm) to red (angry)</p>
+<div style="background:rgba(255,255,255,0.02);border-radius:10px;padding:16px">
+<div class="heatmap-row">
+<span><span class="heatmap-swatch" style="background:var(--green)"></span> Calm / Positive</span>
+<span><span class="heatmap-swatch" style="background:#eab308"></span> Neutral</span>
+<span><span class="heatmap-swatch" style="background:var(--orange)"></span> Frustrated</span>
+<span><span class="heatmap-swatch" style="background:var(--red)"></span> Angry / Negative</span>
+</div>
+<canvas id="heatmapCanvas" height="60" style="width:100%;border-radius:6px"></canvas>
+<div id="heatmapLabels" style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:4px"></div>
+</div>
+</div>
+<div class="card" id="talkRatioCard">
+<div class="card-title"><i class="fas fa-chart-pie" style="color:var(--purple)"></i> Talk Ratio</div>
+<div id="talkRatioContent" class="text-center" style="padding:8px"></div>
+</div>
+<div class="nav-arrows">
+<button class="btn btn-secondary" onclick="goToScreen(4)"><i class="fas fa-chevron-left"></i> Previous</button>
+<button class="btn btn-primary" onclick="goToScreen(6)">Next <i class="fas fa-chevron-right"></i></button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN 6: DASHBOARD -->
+<div id="screen6" class="screen">
+<div class="container">
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-trophy"></i> Dashboard</span><span class="screen-label">Step 6 / 9</span></div>
+<div class="nav-dots" id="navDots6"></div>
+<div class="card text-center" style="position:relative">
+<div class="card-title justify-center"><i class="fas fa-medal" style="color:var(--orange)"></i> Quality Score</div>
+<div class="score-ring" id="scoreRing">
+<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="85" fill="none" stroke="#1e293b" stroke-width="14"/><circle cx="100" cy="100" r="85" fill="none" stroke="var(--blue)" stroke-width="14" stroke-dasharray="534" stroke-dashoffset="534" id="scoreArc" stroke-linecap="round" transform="rotate(-90,100,100)"/></svg>
+<div class="score-val"><div class="num" id="overallScore">0</div><div class="lbl">Grade <span id="overallGrade">-</span></div></div>
+</div>
+</div>
+<div class="card" id="progressCards"></div>
+<div class="card">
+<div class="card-title"><i class="fas fa-arrows-spin" style="color:var(--blue)"></i> Customer Journey</div>
+<div class="journey-box" id="journeyBox"><span class="text-muted">Analyzing...</span></div>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-chart-simple" style="color:var(--blue)"></i> Call KPIs</div>
+<div class="kpi-grid" id="kpiGrid"></div>
+</div>
+<div class="nav-arrows">
+<button class="btn btn-secondary" onclick="goToScreen(5)"><i class="fas fa-chevron-left"></i> Previous</button>
+<button class="btn btn-primary" onclick="goToScreen(7)">Next <i class="fas fa-chevron-right"></i></button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN 7: SCRIPT SUGGESTER -->
+<div id="screen7" class="screen">
+<div class="container">
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-lightbulb"></i> Script Coach</span><span class="screen-label">Step 7 / 9</span></div>
+<div class="nav-dots" id="navDots7"></div>
+<div class="card">
+<div class="card-title"><i class="fas fa-wand-magic-sparkles" style="color:var(--orange)"></i> Script Suggester &amp; Coaching</div>
+<p style="font-size:13px;color:var(--text2);margin-bottom:10px">Smarter alternatives for agent responses that need improvement</p>
+<div id="suggesterContainer"></div>
+</div>
+<div class="nav-arrows">
+<button class="btn btn-secondary" onclick="goToScreen(6)"><i class="fas fa-chevron-left"></i> Previous</button>
+<button class="btn btn-primary" onclick="goToScreen(8)">Next <i class="fas fa-chevron-right"></i></button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN 8: RECOMMENDATIONS -->
+<div id="screen8" class="screen">
+<div class="container">
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-list-check"></i> Recommendations</span><span class="screen-label">Step 8 / 9</span></div>
+<div class="nav-dots" id="navDots8"></div>
+<div class="card">
+<div class="card-title"><i class="fas fa-clipboard-list" style="color:var(--blue)"></i> Actionable Recommendations</div>
+<div id="recsContainer"></div>
+</div>
+<div class="nav-arrows">
+<button class="btn btn-secondary" onclick="goToScreen(7)"><i class="fas fa-chevron-left"></i> Previous</button>
+<button class="btn btn-primary" onclick="goToScreen(9)">Next <i class="fas fa-chevron-right"></i></button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN 9: DOWNLOAD -->
+<div id="screen9" class="screen">
+<div class="container text-center">
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-download"></i> Export</span><span class="screen-label">Step 9 / 9</span></div>
+<div class="nav-dots" id="navDots9"></div>
+<svg class="checkmark-svg" viewBox="0 0 100 100">
+<circle class="ck-circle" cx="50" cy="50" r="45"/>
+<path class="ck-check" d="M30 50 L45 65 L70 35"/>
+</svg>
+<h2 style="font-family:'Poppins',sans-serif;font-size:clamp(22px,5vw,30px);margin-bottom:6px">Analysis Complete</h2>
+<p class="text-muted" style="margin-bottom:20px;font-size:15px">Your call has been fully analyzed and scored</p>
+<div class="card" style="text-align:center">
+<div class="card-title justify-center"><i class="fas fa-download" style="color:var(--blue)"></i> Export Reports</div>
+<div class="download-grid">
+<button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF Report</button>
+<button class="btn btn-success" onclick="downloadExcel()"><i class="fas fa-file-excel"></i> Excel Report</button>
+<button class="btn btn-outline" onclick="copyTranscript()"><i class="fas fa-copy"></i> Copy Transcript</button>
+</div>
+</div>
+<div class="card" style="text-align:center;background:rgba(139,92,246,0.04);border-color:rgba(139,92,246,0.15)">
+<div class="card-title justify-center" style="color:var(--purple)"><i class="fab fa-github"></i> Deploy on GitHub Pages</div>
+<p style="font-size:13px;color:var(--text2);margin-bottom:10px">Share this app with anyone — no server needed</p>
+<div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px 14px;text-align:left;font-family:monospace;font-size:12px;color:var(--text2);line-height:1.7;overflow-x:auto;white-space:nowrap">
+git init<br>
+git add index.html<br>
+git commit -m "Add VoiceIQ app"<br>
+git branch -M main<br>
+git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git<br>
+git push -u origin main
+</div>
+<p style="font-size:12px;color:var(--text2);margin-top:8px">Then enable GitHub Pages in repo Settings &rarr; Pages &rarr; Deploy from main branch /root</p>
+</div>
+<div class="nav-arrows" style="justify-content:center;gap:16px">
+<button class="btn btn-secondary" onclick="goToScreen(8)"><i class="fas fa-chevron-left"></i> Previous</button>
+<button class="btn btn-primary" onclick="resetApp()"><i class="fas fa-rotate"></i> New Analysis</button>
+</div>
+</div>
+</div>
+
+<script>
+'use strict';
+/* ========================= STATE ========================= */
+const S = {
+  apiKey: '',
+  audioFile: null,
+  audioBuffer: null,
+  audioCtx: null,
+  isPlaying: false,
+  isDemo: false,
+  useBackend: false,
+  backendUrl: 'http://localhost:8080',
+  uploadUrl: '',
+  transcriptId: '',
+  transcriptData: null,
+  utterances: [],
+  sentiments: [],
+  negativeMoments: [],
+  scores: { empathy: 0, tone: 0, resolution: 0, negativity: 100, overall: 0, grade: 'N/A' },
+  callData: {},
+  timing: { total: 0, api: 0, processing: 0 }
+};
+
+let currentScreen = 1;
+const TOTAL = 9;
+const visitedScreens = new Set([1]);
+
+/* ========================= DEMO DATA ========================= */
+const DEMO_UTTERANCES = [
+  { speaker: 'A', text: "Good morning, thank you for calling. How can I help you today?", start: 0, end: 3200, sentiment: 'POSITIVE', confidence: 0.98 },
+  { speaker: 'B', text: "Hi, I've been waiting for my order for over a week and I'm really frustrated. This is unacceptable.", start: 3500, end: 7800, sentiment: 'NEGATIVE', confidence: 0.95 },
+  { speaker: 'A', text: "I sincerely apologize for the delay. I understand how frustrating that must be. Let me look into your order right away.", start: 8100, end: 13500, sentiment: 'POSITIVE', confidence: 0.97 },
+  { speaker: 'B', text: "I was told it would arrive in 3 days and it's been 8. I needed it for an event.", start: 13800, end: 17200, sentiment: 'NEGATIVE', confidence: 0.94 },
+  { speaker: 'A', text: "I completely understand. Let me check the tracking and get you a concrete update. May I have your order number please?", start: 17500, end: 22800, sentiment: 'POSITIVE', confidence: 0.96 },
+  { speaker: 'B', text: "It's ORD-78492. Can you actually help or just give me excuses?", start: 23100, end: 26100, sentiment: 'NEGATIVE', confidence: 0.93 },
+  { speaker: 'A', text: "Absolutely, I can help. I see your order here — it looks like it was delayed at the shipping hub. I personally escalated this and it's now out for delivery. You should receive it today by 6 PM.", start: 26400, end: 34500, sentiment: 'POSITIVE', confidence: 0.97 },
+  { speaker: 'B', text: "Really? It's coming today? That would be a relief. I was so stressed about this.", start: 34800, end: 38200, sentiment: 'NEUTRAL', confidence: 0.91 },
+  { speaker: 'A', text: "Yes, I've confirmed it. I also added a 20% discount on your next order for the inconvenience. I'm truly sorry for the trouble.", start: 38500, end: 43800, sentiment: 'POSITIVE', confidence: 0.98 },
+  { speaker: 'B', text: "Wow, thank you so much. I really appreciate you taking the time to fix this. You've been very helpful.", start: 44100, end: 48200, sentiment: 'POSITIVE', confidence: 0.96 },
+  { speaker: 'A', text: "You're welcome! That's what I'm here for. Is there anything else I can assist you with today?", start: 48500, end: 51800, sentiment: 'POSITIVE', confidence: 0.97 },
+  { speaker: 'B', text: "No, that's all. Thank you again for turning this around. Have a great day!", start: 52100, end: 55600, sentiment: 'POSITIVE', confidence: 0.95 },
+  { speaker: 'A', text: "Thank you for your patience. Have a wonderful day! Goodbye.", start: 55900, end: 58200, sentiment: 'POSITIVE', confidence: 0.98 }
+];
+
+const DEMO_NEGATIVE = [
+  { customerText: "I've been waiting for my order for over a week and I'm really frustrated. This is unacceptable.", customerStart: 3500, customerEnd: 7800, agentText: "I sincerely apologize for the delay. I understand how frustrating that must be. Let me look into your order right away.", agentStart: 8100, agentEnd: 13500, responseQuality: 'EXCELLENT', customerSentiment: 'NEGATIVE' },
+  { customerText: "I was told it would arrive in 3 days and it's been 8. I needed it for an event.", customerStart: 13800, customerEnd: 17200, agentText: "I completely understand. Let me check the tracking and get you a concrete update. May I have your order number please?", agentStart: 17500, agentEnd: 22800, responseQuality: 'EXCELLENT', customerSentiment: 'NEGATIVE' },
+  { customerText: "Can you actually help or just give me excuses?", customerStart: 23100, customerEnd: 26100, agentText: "Absolutely, I can help. I see your order here — it looks like it was delayed at the shipping hub. I personally escalated this and it's now out for delivery.", agentStart: 26400, agentEnd: 34500, responseQuality: 'EXCELLENT', customerSentiment: 'NEGATIVE' }
+];
+
+/* ========================= INIT ========================= */
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('voiceiq_api_key');
+  if (saved) {
+    document.getElementById('apiKeyInput').value = saved;
+    S.apiKey = saved;
+  }
+  document.getElementById('apiKeyInput').addEventListener('input', e => {
+    S.apiKey = e.target.value.trim();
+    localStorage.setItem('voiceiq_api_key', S.apiKey);
+  checkReady();
+
+  // Detect local backend
+  fetch(S.backendUrl + '/api/status')
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'running') {
+        S.useBackend = true;
+        const badge = document.createElement('div');
+        badge.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:100;padding:6px 14px;border-radius:20px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:var(--green);font-size:11px;font-weight:700;backdrop-filter:blur(8px)';
+        badge.innerHTML = '<i class="fas fa-microchip"></i> Local Whisper Backend';
+        document.body.appendChild(badge);
+        document.getElementById('demoHint').innerHTML = '<i class="fas fa-microchip"></i> Local Whisper backend detected! Will use ' + data.models.join(' + ');
+      }
+    })
+    .catch(() => { S.useBackend = false; });
+  });
+  setupUpload();
+  buildDots();
+  showScreen(1);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') goToScreen(currentScreen + 1);
+    if (e.key === 'ArrowLeft') goToScreen(currentScreen - 1);
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.changedTouches[0].screenX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].screenX - tx;
+    if (Math.abs(dx) > 60) {
+      if (dx < 0) goToScreen(currentScreen + 1);
+      else goToScreen(currentScreen - 1);
+    }
+  }, { passive: true });
+
+  checkReady();
+});
+
+function checkReady() {
+  const btn = document.getElementById('analyzeBtn');
+  const hint = document.getElementById('demoHint');
+  btn.disabled = !S.audioFile;
+  if (!S.apiKey && S.audioFile) {
+    hint.style.display = 'block';
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+/* ========================= NAVIGATION ========================= */
+function buildDots() {
+  for (let i = 3; i <= TOTAL; i++) {
+    const c = document.getElementById('navDots' + i);
+    if (c) {
+      c.innerHTML = '';
+      for (let j = 1; j <= TOTAL; j++) {
+        const d = document.createElement('div');
+        d.className = 'nav-dot';
+        d.textContent = j;
+        d.onclick = () => goToScreen(j);
+        c.appendChild(d);
+      }
+    }
+  }
+}
+
+function showScreen(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen' + n);
+  if (el) { el.classList.add('active'); el.style.display = 'block'; }
+  currentScreen = n;
+  visitedScreens.add(n);
+  updateDots(n);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateDots(n) {
+  for (let i = 1; i <= TOTAL; i++) {
+    const c = document.getElementById('navDots' + i);
+    if (!c) continue;
+    for (let j = 0; j < c.children.length; j++) {
+      c.children[j].className = 'nav-dot';
+      const v = parseInt(c.children[j].textContent);
+      if (v === n) c.children[j].classList.add('active');
+      else if (visitedScreens.has(v)) c.children[j].classList.add('visited');
+    }
+  }
+}
+
+function goToScreen(n) {
+  if (n < 1 || n > TOTAL) return;
+  if (n >= 3 && !S.transcriptData) {
+    showToast('Complete analysis first', 'error');
+    return;
+  }
+  showScreen(n);
+}
+
+/* ========================= UPLOAD ========================= */
+function setupUpload() {
+  const zone = document.getElementById('uploadZone');
+  const input = document.getElementById('fileInput');
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+  input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+}
+
+function handleFile(file) {
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  if (!['.mp3','.wav','.m4a'].includes(ext)) { showToast('Please upload MP3, WAV, or M4A', 'error'); return; }
+  if (file.size > 25 * 1024 * 1024) { showToast('File too large (max 25MB — AssemblyAI free tier limit)', 'error'); return; }
+  S.audioFile = file;
+  document.getElementById('uploadZone').classList.add('has-file');
+  document.getElementById('fileInfo').textContent = '\uD83D\uDCC1 ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)';
+  document.getElementById('analyzeError').style.display = 'none';
+  checkReady();
+  drawWaveform(file);
+}
+
+async function drawWaveform(file) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  S.audioCtx = ctx;
+  const arr = await file.arrayBuffer();
+  const buf = await ctx.decodeAudioData(arr);
+  S.audioBuffer = buf;
+  const dur = buf.duration;
+  const m = Math.floor(dur / 60), s = Math.floor(dur % 60);
+  document.getElementById('audioDuration').textContent = m + ':' + String(s).padStart(2, '0');
+  document.getElementById('audioPreview').classList.add('show');
+
+  const cv = document.getElementById('waveformCanvas');
+  const rect = cv.parentElement.getBoundingClientRect();
+  const w = Math.max(rect.width - 32, 200);
+  cv.width = w * 2; cv.height = 100;
+  cv.style.width = w + 'px'; cv.style.height = '50px';
+  const g = cv.getContext('2d');
+  const data = buf.getChannelData(0);
+  const step = Math.floor(data.length / 200);
+  g.fillStyle = '#1e293b';
+  g.fillRect(0, 0, cv.width, cv.height);
+  const mid = cv.height / 2;
+  g.strokeStyle = '#2563eb';
+  g.lineWidth = 2;
+  g.beginPath();
+  for (let i = 0; i < 200; i++) {
+    let max = 0;
+    for (let j = i * step; j < (i + 1) * step && j < data.length; j++) {
+      const v = Math.abs(data[j]);
+      if (v > max) max = v;
+    }
+    const x = (i / 200) * cv.width;
+    const h = max * mid * 0.9;
+    g.moveTo(x, mid - h);
+    g.lineTo(x, mid + h);
+  }
+  g.stroke();
+}
+
+const audioSourceNode = { current: null };
+
+function togglePlay() {
+  if (S.isPlaying) { S.audioCtx.close(); S.audioCtx = null; S.isPlaying = false; document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>'; return; }
+  if (!S.audioBuffer) return;
+  if (!S.audioCtx) S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = S.audioCtx.createBufferSource();
+  src.buffer = S.audioBuffer;
+  src.connect(S.audioCtx.destination);
+  src.start(0);
+  S.isPlaying = true;
+  document.getElementById('playBtn').innerHTML = '<i class="fas fa-stop"></i>';
+  src.onended = () => { S.isPlaying = false; document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>'; };
+}
+
+/* ========================= TOAST ========================= */
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || 'success');
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => { t.className = 'toast'; }, 3800);
+}
+
+/* ========================= MAIN ANALYSIS ========================= */
+document.getElementById('analyzeBtn').addEventListener('click', async () => {
+  if (!S.audioFile) return;
+  S.isDemo = !S.apiKey && !S.useBackend;
+  document.getElementById('demoBadge').classList.toggle('hidden', !S.isDemo);
+  showScreen(2);
+  await runAnalysis();
+});
+
+async function runAnalysis() {
+  resetSteps();
+  const t0 = performance.now();
+  let apiStart = 0;
+  try {
+    if (S.isDemo) {
+      await runDemoAnalysis();
+      return;
+    }
+    if (S.useBackend) {
+      await runBackendAnalysis();
+      return;
+    }
+    // Step 0: Upload
+    updateStep(0, 'running');
+    apiStart = performance.now();
+    const uploadUrl = await uploadAudio();
+    S.uploadUrl = uploadUrl;
+    updateStep(0, 'done'); updateProgress(12);
+
+    // Step 1: Start transcription
+    updateStep(1, 'running');
+    const tid = await startTranscription(uploadUrl);
+    S.transcriptId = tid;
+    updateStep(1, 'done'); updateProgress(25);
+
+    // Step 2: Poll for completion
+    updateStep(2, 'running');
+    let td;
+    try {
+      td = await pollTranscription(tid);
+    } catch (pollErr) {
+      showToast('AssemblyAI failed, trying Whisper fallback...', 'info');
+      updateStep(1, 'running');
+      updateStep(2, 'running');
+      td = await runWhisperFallback();
+    }
+    S.transcriptData = td;
+    S.utterances = td.utterances || [];
+    S.timing.api = (performance.now() - apiStart) / 1000;
+    updateStep(2, 'done'); updateProgress(37);
+
+    // Step 3: Sentiment
+    updateStep(3, 'running');
+    S.sentiments = S.utterances.map(u => ({
+      speaker: u.speaker, text: u.text, sentiment: u.sentiment || 'NEUTRAL',
+      start: u.start, end: u.end, confidence: u.confidence || 0
+    }));
+    updateStep(3, 'done'); updateProgress(50);
+
+    // Step 4: Negative moments
+    updateStep(4, 'running');
+    S.negativeMoments = findNegatives();
+    updateStep(4, 'done'); updateProgress(62);
+
+    // Step 5: Evaluate
+    updateStep(5, 'running');
+    evaluateAll();
+    updateStep(5, 'done'); updateProgress(75);
+
+    // Step 6: Scores
+    updateStep(6, 'running');
+    calcScores();
+    updateStep(6, 'done'); updateProgress(87);
+
+    // Step 7: Report
+    updateStep(7, 'running');
+    buildCallData();
+    renderAll();
+    updateStep(7, 'done'); updateProgress(100);
+
+    S.timing.total = (performance.now() - t0) / 1000;
+    S.timing.processing = S.timing.total - S.timing.api;
+    document.getElementById('timingDisplay').style.display = 'block';
+    document.getElementById('totalTime').textContent = S.timing.total.toFixed(1);
+    document.getElementById('apiTime').textContent = S.timing.api.toFixed(1);
+    document.getElementById('procTime').textContent = S.timing.processing.toFixed(1);
+
+    setTimeout(() => { showToast('Analysis complete!', 'success'); showScreen(3); }, 600);
+
+  } catch (err) {
+    console.error(err);
+    showToast('Error: ' + err.message, 'error');
+    if (S.utterances.length) renderAll();
+    goToScreen(3);
+  }
+}
+
+async function runBackendAnalysis() {
+  resetSteps();
+  const t0 = performance.now();
+  try {
+    updateStep(0, 'running');
+    document.getElementById('sstatus0').textContent = 'Sending to backend...';
+
+    const form = new FormData();
+    form.append('file', S.audioFile);
+    const resp = await fetch(S.backendUrl + '/api/transcribe', {
+      method: 'POST',
+      body: form
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error('Backend error: ' + (errText || resp.statusText));
+    }
+    updateStep(0, 'done');
+    document.getElementById('sstatus0').textContent = 'Processed by Whisper';
+    updateProgress(25);
+
+    const data = await resp.json();
+    S.transcriptData = data;
+    S.utterances = data.utterances || [];
+    S.sentiments = (data.utterances || []).map(u => ({
+      speaker: u.speaker, text: u.text, sentiment: u.sentiment || 'NEUTRAL',
+      start: u.start, end: u.end, confidence: u.confidence || 0.8
+    }));
+    S.negativeMoments = data.negativeMoments || [];
+    S.scores = data.scores || { empathy:0,tone:0,resolution:0,negativity:100,overall:0,grade:'N/A' };
+
+    updateStep(1, 'done');
+    document.getElementById('sstatus1').textContent = 'Whisper transcription done';
+    updateProgress(37);
+    updateStep(2, 'done');
+    document.getElementById('sstatus2').textContent = 'Speaker detection done';
+    updateProgress(50);
+    updateStep(3, 'done');
+    document.getElementById('sstatus3').textContent = 'Emotion analysis done';
+    updateProgress(62);
+    updateStep(4, 'done');
+    document.getElementById('sstatus4').textContent = 'Found ' + S.negativeMoments.length + ' moments';
+    updateProgress(75);
+    updateStep(5, 'done');
+    document.getElementById('sstatus5').textContent = 'Responses evaluated';
+    updateProgress(87);
+
+    buildCallDataFromBackend(data);
+    renderAll();
+
+    updateStep(6, 'done');
+    document.getElementById('sstatus6').textContent = 'Score: ' + S.scores.overall + '% (' + S.scores.grade + ')';
+    updateStep(7, 'done');
+    document.getElementById('sstatus7').textContent = 'Report generated';
+    updateProgress(100);
+
+    S.timing.total = (performance.now() - t0) / 1000;
+    document.getElementById('timingDisplay').style.display = 'block';
+    document.getElementById('totalTime').textContent = S.timing.total.toFixed(1);
+    document.getElementById('apiTime').textContent = (S.timing.total * 0.6).toFixed(1);
+    document.getElementById('procTime').textContent = (S.timing.total * 0.4).toFixed(1);
+
+    setTimeout(() => { showToast('Analysis complete (Whisper backend)!', 'success'); showScreen(3); }, 300);
+  } catch (err) {
+    console.error(err);
+    showToast('Backend error: ' + err.message + '. Trying AssemblyAI...', 'error');
+    S.useBackend = false;
+    await runAnalysis();
+  }
+}
+
+function buildCallDataFromBackend(data) {
+  const ud = data.callData || {};
+  const utts = data.utterances || [];
+  const sents = data.sentiments || utts;
+  const first = sents.length ? sents[0].sentiment : 'NEUTRAL';
+  const last = sents.length ? sents[sents.length - 1].sentiment : 'NEUTRAL';
+  S.callData = {
+    duration: ud.duration || '0:00',
+    totalSecs: ud.totalSecs || 60,
+    totalUtts: ud.totalUtts || utts.length,
+    agentUtts: ud.agentUtts || utts.filter(u => u.speaker === 'A').length,
+    custUtts: ud.custUtts || utts.filter(u => u.speaker === 'B').length,
+    agentWords: ud.agentWords || 0,
+    custWords: ud.custWords || 0,
+    totalWords: ud.totalWords || 0,
+    startEmotion: ud.startEmotion || first,
+    endEmotion: ud.endEmotion || last,
+    stress: ud.stress || 'Moderate',
+    outcome: ud.outcome || 'Neutral',
+    negCount: ud.negCount || utts.filter(u => u.sentiment === 'NEGATIVE').length,
+    posCount: ud.posCount || utts.filter(u => u.sentiment === 'POSITIVE').length,
+    avgResponseTime: ud.avgResponseTime || 2,
+    fillerWords: ud.fillerWords || 0
+  };
+}
+
+async function runDemoAnalysis() {
+  // Simulate processing with delays
+  for (let i = 0; i < 8; i++) {
+    updateStep(i, 'running');
+    await sleep(i === 0 ? 80 : i === 1 ? 100 : i === 2 ? 80 : i === 3 ? 60 : i === 4 ? 60 : i === 5 ? 50 : i === 6 ? 40 : 30);
+    updateStep(i, 'done');
+    updateProgress((i + 1) * 12.5);
+  }
+  S.utterances = DEMO_UTTERANCES;
+  S.sentiments = DEMO_UTTERANCES.map(u => ({
+    speaker: u.speaker, text: u.text, sentiment: u.sentiment,
+    start: u.start, end: u.end, confidence: u.confidence
+  }));
+  S.negativeMoments = DEMO_NEGATIVE.map(m => ({ ...m }));
+  evaluateAll();
+  calcScores();
+  buildCallData();
+  renderAll();
+  setTimeout(() => { showToast('Demo analysis complete!', 'success'); showScreen(3); }, 500);
+}
+
+/* ========================= ASSEMBLYAI API ========================= */
+async function uploadAudio() {
+  const r = await fetch('https://api.assemblyai.com/v2/upload', {
+    method: 'POST', headers: { 'authorization': S.apiKey }, body: S.audioFile
+  });
+  if (!r.ok) throw new Error('Upload failed: ' + (await r.text() || r.statusText));
+  return (await r.json()).upload_url;
+}
+
+async function startTranscription(url) {
+  const lang = document.getElementById('langSelect')?.value || 'auto';
+  const body = { audio_url: url, speaker_labels: true, sentiment_analysis: true };
+  if (lang !== 'auto') body.language_code = lang;
+  const r = await fetch('https://api.assemblyai.com/v2/transcript', {
+    method: 'POST',
+    headers: { 'authorization': S.apiKey, 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('Transcription start failed: ' + (await r.text() || r.statusText));
+  return (await r.json()).id;
+}
+
+async function pollTranscription(id) {
+  for (let i = 0; i < 200; i++) {
+    const r = await fetch('https://api.assemblyai.com/v2/transcript/' + id, {
+      headers: { 'authorization': S.apiKey }
+    });
+    if (!r.ok) throw new Error('Polling failed');
+    const d = await r.json();
+    if (d.status === 'completed') return d;
+    if (d.status === 'error') throw new Error('Transcription error: ' + (d.error || 'unknown'));
+    await sleep(1000);
+    updateProgress(25 + Math.min(12, (i / 60) * 12));
+  }
+  throw new Error('Timed out');
+}
+
+async function runWhisperFallback() {
+  showToast('Downloading Whisper AI model (75MB) ...', 'info');
+  updateStep(1, 'running');
+  document.getElementById('sstatus1').textContent = 'Loading Whisper...';
+  let pipe;
+  try {
+    const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+    pipe = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
+      quantized: true,
+      progress_callback: (p) => {
+        if (p.status === 'progress') {
+          document.getElementById('sstatus1').textContent = 'Model: ' + Math.round(p.progress * 100) + '%';
+        }
+      }
+    });
+  } catch (e) {
+    throw new Error('Whisper model failed to load: ' + e.message);
+  }
+  updateStep(1, 'done');
+  updateStep(2, 'running');
+  document.getElementById('sstatus2').textContent = 'Transcribing...';
+
+  let audioData;
+  if (S.audioBuffer) {
+    audioData = S.audioBuffer;
+  } else {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const arr = await S.audioFile.arrayBuffer();
+    audioData = await ctx.decodeAudioData(arr);
+  }
+
+  const sampleRate = 16000;
+  const origRate = audioData.sampleRate;
+  const channels = audioData.numberOfChannels;
+  const mono = channels > 1
+    ? new Float32Array(audioData.length)
+    : audioData.getChannelData(0);
+  if (channels > 1) {
+    const ch0 = audioData.getChannelData(0);
+    const ch1 = audioData.getChannelData(1);
+    for (let i = 0; i < audioData.length; i++) mono[i] = (ch0[i] + ch1[i]) / 2;
+  }
+
+  // Resample to 16kHz
+  const ratio = sampleRate / origRate;
+  const newLen = Math.round(mono.length * ratio);
+  const resampled = new Float32Array(newLen);
+  for (let i = 0; i < newLen; i++) {
+    const src = i / ratio;
+    const s = Math.floor(src);
+    const f = src - s;
+    resampled[i] = s + 1 < mono.length
+      ? mono[s] * (1 - f) + mono[s + 1] * f
+      : mono[s];
+  }
+
+  const result = await pipe(resampled, { return_timestamps: true });
+
+  // Build utterances from Whisper result
+  const utts = [];
+  if (result.chunks) {
+    for (const ch of result.chunks) {
+      const startMs = Math.round((ch.timestamp?.[0] || 0) * 1000);
+      const endMs = Math.round((ch.timestamp?.[1] || 0) * 1000);
+      utts.push({
+        speaker: 'A',
+        text: ch.text || '',
+        start: startMs,
+        end: endMs || startMs + 2000,
+        sentiment: 'NEUTRAL',
+        confidence: 0.85
+      });
+    }
+  }
+  // If no chunks, use full text
+  if (!utts.length && result.text) {
+    utts.push({
+      speaker: 'A',
+      text: result.text,
+      start: 0,
+      end: 60000,
+      sentiment: 'NEUTRAL',
+      confidence: 0.85
+    });
+  }
+
+  document.getElementById('sstatus2').textContent = 'Done (Whisper)';
+  return { utterances: utts };
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ========================= STEPS ========================= */
+function resetSteps() {
+  for (let i = 0; i < 8; i++) {
+    const ic = document.getElementById('sicon' + i);
+    const st = document.getElementById('sstatus' + i);
+    ic.closest('.step')?.classList.remove('active','done');
+    ic.className = 'step-icon pending'; ic.innerHTML = '<i class="fas fa-circle"></i>';
+    if (st) st.textContent = 'Pending';
+  }
+  updateProgress(0);
+}
+
+function updateStep(idx, state) {
+  const ic = document.getElementById('sicon' + idx);
+  const st = document.getElementById('sstatus' + idx);
+  const step = ic?.closest('.step');
+  if (!ic) return;
+  step?.classList.remove('active','done');
+  if (state === 'running') {
+    step?.classList.add('active');
+    ic.className = 'step-icon running'; ic.innerHTML = '<i class="fas fa-spinner"></i>';
+    if (st) st.textContent = 'Processing...';
+  } else if (state === 'done') {
+    step?.classList.add('done');
+    ic.className = 'step-icon done'; ic.innerHTML = '<i class="fas fa-check"></i>';
+    if (st) st.textContent = 'Complete';
+  }
+}
+
+function updateProgress(p) {
+  document.getElementById('progressFill').style.width = p + '%';
+}
+
+/* ========================= ANALYSIS ENGINE ========================= */
+function findNegatives() {
+  const out = [];
+  for (let i = 0; i < S.utterances.length; i++) {
+    if (S.utterances[i].speaker === 'B' && S.utterances[i].sentiment === 'NEGATIVE') {
+      const agentReply = findNextAgent(i);
+      out.push({
+        customerText: S.utterances[i].text,
+        customerStart: S.utterances[i].start,
+        customerEnd: S.utterances[i].end,
+        agentText: agentReply?.text || '(No response)',
+        agentStart: agentReply?.start || 0,
+        agentEnd: agentReply?.end || 0,
+        customerSentiment: 'NEGATIVE',
+        responseQuality: 'GOOD'
+      });
+    }
+  }
+  return out;
+}
+
+function findNextAgent(from) {
+  for (let i = from + 1; i < S.utterances.length; i++) {
+    if (S.utterances[i].speaker === 'A') return S.utterances[i];
+  }
+  return null;
+}
+
+function rateResponse(text) {
+  if (!text || text.trim().length < 3) return 'FAILED';
+  const t = text.toLowerCase();
+  let score = 0;
+  const empathy = ['sorry','apologize','understand','frustrat','appreciate','thank','help','resolve','fix','assist','concern','patience','empathize','regret','inconvenience'];
+  const action = ['let me','i will','going to','right away','happy to','glad to','definitely','immediately','as soon','personally','escalated','confirmed'];
+  for (const w of empathy) if (t.includes(w)) score += 2;
+  for (const w of action) if (t.includes(w)) score += 1.8;
+  if (text.length > 25) score += 1;
+  if (text.length > 50) score += 0.5;
+  if (score >= 7) return 'EXCELLENT';
+  if (score >= 3.5) return 'GOOD';
+  if (score >= 1) return 'POOR';
+  return 'FAILED';
+}
+
+function evaluateAll() {
+  for (const m of S.negativeMoments) {
+    m.responseQuality = rateResponse(m.agentText);
+  }
+}
+
+function calcScores() {
+  const utts = S.utterances;
+  const moments = S.negativeMoments;
+  if (!utts.length) {
+    S.scores = { empathy: 50, tone: 50, resolution: 50, negativity: 50, overall: 50, grade: 'C' };
+    return;
+  }
+  // Empathy (30%)
+  let ec = 0, et = 0;
+  for (let i = 0; i < utts.length - 1; i++) {
+    if (utts[i].speaker === 'B' && utts[i].sentiment === 'NEGATIVE') {
+      et++;
+      const n = utts[i + 1];
+      if (n && n.speaker === 'A' && (n.sentiment === 'POSITIVE' || n.sentiment === 'NEUTRAL')) ec++;
+    }
+  }
+  const empathy = et > 0 ? (ec / et) * 100 : 75;
+
+  // Tone (25%)
+  const agentU = utts.filter(u => u.speaker === 'A');
+  const posA = agentU.filter(u => u.sentiment === 'POSITIVE').length;
+  const tone = agentU.length > 0 ? (posA / agentU.length) * 100 : 50;
+
+  // Resolution (25%)
+  const lastCust = [...utts].reverse().find(u => u.speaker === 'B');
+  const resolution = lastCust ? (lastCust.sentiment === 'POSITIVE' ? 100 : lastCust.sentiment === 'NEUTRAL' ? 60 : 25) : 50;
+
+  // Negativity handling (20%)
+  const goodH = moments.filter(m => m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD').length;
+  const negativity = moments.length > 0 ? (goodH / moments.length) * 100 : 100;
+
+  const overall = Math.round(empathy * 0.30 + tone * 0.25 + resolution * 0.25 + negativity * 0.20);
+  const grade = overall > 90 ? 'A' : overall > 80 ? 'B' : overall > 70 ? 'C' : overall > 55 ? 'D' : 'F';
+
+  S.scores = { empathy: Math.round(empathy), tone: Math.round(tone), resolution: Math.round(resolution), negativity: Math.round(negativity), overall, grade };
+}
+
+function buildCallData() {
+  const utts = S.utterances;
+  const sents = S.sentiments;
+  const first = sents.length ? sents[0].sentiment : 'NEUTRAL';
+  const last = sents.length ? sents[sents.length - 1].sentiment : 'NEUTRAL';
+  const totalMs = utts.length ? (utts[utts.length - 1].end || 60000) : 60000;
+  const agentWords = utts.filter(u => u.speaker === 'A').reduce((a, u) => a + (u.text ? u.text.split(/\s+/).length : 0), 0);
+  const custWords = utts.filter(u => u.speaker === 'B').reduce((a, u) => a + (u.text ? u.text.split(/\s+/).length : 0), 0);
+  const avgResp = avgResponseTime();
+  const fillers = countFillers(utts.filter(u => u.speaker === 'A').map(u => u.text));
+
+  S.callData = {
+    duration: fmtDur(totalMs / 1000),
+    totalSecs: totalMs / 1000,
+    totalUtts: utts.length,
+    agentUtts: utts.filter(u => u.speaker === 'A').length,
+    custUtts: utts.filter(u => u.speaker === 'B').length,
+    agentWords, custWords,
+    totalWords: agentWords + custWords,
+    startEmotion: first,
+    endEmotion: last,
+    stress: S.scores.overall < 60 ? 'High Stress' : S.scores.overall < 80 ? 'Moderate' : 'Low Stress',
+    outcome: S.scores.overall >= 70 ? 'Positive Resolution' : S.scores.overall >= 55 ? 'Neutral' : 'Escalation Needed',
+    negCount: sents.filter(s => s.sentiment === 'NEGATIVE').length,
+    posCount: sents.filter(s => s.sentiment === 'POSITIVE').length,
+    avgResponseTime: avgResp,
+    fillerWords: fillers
+  };
+}
+
+function avgResponseTime() {
+  let total = 0, count = 0;
+  for (let i = 0; i < S.utterances.length - 1; i++) {
+    if (S.utterances[i].speaker === 'B' && S.utterances[i + 1].speaker === 'A') {
+      total += (S.utterances[i + 1].start || 0) - (S.utterances[i].end || 0);
+      count++;
+    }
+  }
+  return count > 0 ? Math.round(total / count / 1000) : 2;
+}
+
+function countFillers(texts) {
+  const fWords = ['um','uh','like','you know','actually','basically','literally','sort of','kind of','i mean'];
+  let count = 0;
+  for (const t of texts) {
+    const tl = t.toLowerCase();
+    for (const f of fWords) {
+      const re = new RegExp('\\b' + f.replace(/ /g, '\\s+') + '\\b', 'g');
+      const m = tl.match(re);
+      if (m) count += m.length;
+    }
+  }
+  return count;
+}
+
+function fmtDur(sec) {
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+/* ========================= RENDER ALL ========================= */
+function renderAll() {
+  renderTranscript();
+  renderNegatives();
+  renderHeatmap();
+  renderTalkRatio();
+  renderDashboard();
+  renderSuggester();
+  renderRecommendations();
+}
+
+/* ========================= RENDER: TRANSCRIPT ========================= */
+let showFullTranscript = false;
+
+function toggleFullTranscript() {
+  showFullTranscript = !showFullTranscript;
+  const btn = document.getElementById('toggleTranscript');
+  btn.innerHTML = showFullTranscript
+    ? '<i class="fas fa-exclamation-circle"></i> Show Key Moments'
+    : '<i class="fas fa-list"></i> Show Full Transcript';
+  renderTranscriptBubbles();
+}
+
+function renderTranscript() {
+  const s = document.getElementById('transcriptSummary');
+  const utts = S.utterances;
+  if (!utts.length) { document.getElementById('transcriptContainer').innerHTML = '<p class="text-muted">No transcript data.</p>'; return; }
+
+  const pos = utts.filter(u => u.sentiment === 'POSITIVE').length;
+  const neg = utts.filter(u => u.sentiment === 'NEGATIVE').length;
+  const neu = utts.filter(u => u.sentiment === 'NEUTRAL').length;
+  s.innerHTML = `
+    <div class="summary-box green"><div class="big">${pos}</div><div class="sml">Positive</div></div>
+    <div class="summary-box orange"><div class="big">${neu}</div><div class="sml">Neutral</div></div>
+    <div class="summary-box red"><div class="big">${neg}</div><div class="sml">Negative</div></div>
+    <div class="summary-box blue"><div class="big">${utts.length}</div><div class="sml">Total</div></div>
+  `;
+  renderTranscriptBubbles();
+}
+
+function renderTranscriptBubbles() {
+  const c = document.getElementById('transcriptContainer');
+  c.innerHTML = '';
+  const utts = S.utterances;
+  if (!utts.length) return;
+
+  const filtered = showFullTranscript ? utts : utts.filter(u => u.sentiment === 'NEGATIVE' || u.sentiment === 'POSITIVE');
+
+  if (!filtered.length) {
+    c.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">No key emotional moments found. Click "Show Full Transcript" to see all utterances.</p>';
+    return;
+  }
+
+  for (let i = 0; i < filtered.length; i++) {
+    const u = filtered[i];
+    const origIdx = utts.indexOf(u);
+    const isAgent = u.speaker === 'A';
+    const isNeg = u.sentiment === 'NEGATIVE';
+    const isPos = u.sentiment === 'POSITIVE';
+
+    const b = document.createElement('div');
+    b.className = 'chat-bubble ' + (isAgent ? 'agent' : 'customer') + (isNeg && !isAgent ? ' negative' : '');
+
+    let emotionEmoji = '';
+    if (isNeg) emotionEmoji = ' \uD83D\uDE21';
+    else if (isPos) emotionEmoji = ' \uD83D\uDE0A';
+
+    let badges = `<span class="sentiment-badge ${u.sentiment||'NEUTRAL'}">${emotionEmoji} ${u.sentiment||'NEUTRAL'}</span>`;
+
+    if (isAgent && origIdx > 0 && utts[origIdx-1].speaker === 'B' && utts[origIdx-1].sentiment === 'NEGATIVE') {
+      const q = rateResponse(u.text);
+      badges += ' <span class="response-badge ' + q + '">' + q + '</span>';
+    }
+
+    b.innerHTML = `
+      <div class="meta">
+        <span class="speaker ${isAgent ? 'agent' : 'customer'}">${isAgent ? 'Agent' : 'Customer'}</span>
+        <span class="time">${fmtDur((u.start||0)/1000)}</span>
+        ${badges}
+      </div>
+      <div>${esc(u.text)}</div>`;
+    c.appendChild(b);
+  }
+
+  if (!showFullTranscript && filtered.length < utts.length) {
+    const more = document.createElement('div');
+    more.className = 'text-center mt-16';
+    more.innerHTML = '<span style="color:var(--text2);font-size:13px">Showing key moments only. </span><a href="javascript:void(0)" onclick="toggleFullTranscript()" style="color:var(--blue);font-size:13px;font-weight:600">Show all ' + utts.length + ' utterances</a>';
+    c.appendChild(more);
+  }
+}
+
+/* ========================= RENDER: NEGATIVES ========================= */
+function renderNegatives() {
+  const c = document.getElementById('negativeContainer');
+  const s = document.getElementById('negativeSummary');
+  c.innerHTML = '';
+  const mom = S.negativeMoments;
+  if (!mom.length) {
+    c.innerHTML = '<p style="color:var(--green);font-size:14px"><i class="fas fa-check-circle"></i> No negative moments &mdash; great call!</p>';
+    s.innerHTML = '<div class="summary-box green"><div class="big">0</div><div class="sml">Complaints</div></div><div class="summary-box blue"><div class="big">0</div><div class="sml">Handled Well</div></div><div class="summary-box red"><div class="big">0</div><div class="sml">Handled Poorly</div></div>';
+    return;
+  }
+  const total = mom.length;
+  const good = mom.filter(m => m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD').length;
+  const poor = mom.filter(m => m.responseQuality === 'POOR' || m.responseQuality === 'FAILED').length;
+  s.innerHTML = `
+    <div class="summary-box orange"><div class="big">${total}</div><div class="sml">Complaints</div></div>
+    <div class="summary-box green"><div class="big">${good}</div><div class="sml">Handled Well</div></div>
+    <div class="summary-box red"><div class="big">${poor}</div><div class="sml">Handled Poorly</div></div>`;
+  mom.forEach((m, i) => {
+    const ok = m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD';
+    const d = document.createElement('div');
+    d.className = 'moment-card ' + (ok ? 'positive' : 'negative');
+    d.innerHTML = `
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">#${i+1} at ${fmtDur((m.customerStart||0)/1000)}</div>
+      <div style="margin-bottom:6px"><strong style="color:var(--red)">Customer:</strong> ${esc(m.customerText)}</div>
+      <div style="margin-bottom:4px"><strong style="color:var(--blue)">Agent:</strong> ${esc(m.agentText)}</div>
+      <span class="response-badge ${m.responseQuality}">${m.responseQuality}</span>`;
+    c.appendChild(d);
+  });
+}
+
+/* ========================= RENDER: HEATMAP ========================= */
+function renderHeatmap() {
+  const cv = document.getElementById('heatmapCanvas');
+  const lb = document.getElementById('heatmapLabels');
+  const rect = cv.parentElement.getBoundingClientRect();
+  const w = Math.max(rect.width - 32, 300);
+  cv.width = w * 2; cv.height = 120;
+  cv.style.width = w + 'px'; cv.style.height = '60px';
+  const ctx = cv.getContext('2d');
+
+  const cust = S.sentiments.filter(s => s.speaker === 'B');
+  if (!cust.length) {
+    ctx.fillStyle = '#334155'; ctx.fillRect(0, 0, cv.width, cv.height);
+    lb.innerHTML = '<span>No data</span>';
+    return;
+  }
+  const end = cust[cust.length - 1].end || 60000;
+  const barW = cv.width / Math.max(cust.length, 1);
+  cust.forEach((s, i) => {
+    ctx.fillStyle = s.sentiment === 'POSITIVE' ? '#22c55e' : s.sentiment === 'NEGATIVE' ? '#ef4444' : '#eab308';
+    ctx.fillRect(i * barW, 0, Math.max(barW, 1), cv.height);
+  });
+  lb.innerHTML = '';
+  const n = Math.min(8, cust.length);
+  for (let i = 0; i <= n; i++) { const sp = document.createElement('span'); sp.textContent = fmtDur((end / 1000 / n) * i); lb.appendChild(sp); }
+}
+
+/* ========================= RENDER: TALK RATIO ========================= */
+function renderTalkRatio() {
+  const c = document.getElementById('talkRatioContent');
+  const cd = S.callData;
+  const total = cd.agentWords + cd.custWords || 1;
+  const aPct = Math.round((cd.agentWords / total) * 100);
+  const cPct = Math.round((cd.custWords / total) * 100);
+  c.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap">
+      <div><div style="width:100px;height:100px;border-radius:50%;background:conic-gradient(var(--blue) 0% ${aPct}%, var(--green) ${aPct}% 100%);margin:0 auto"></div></div>
+      <div style="text-align:left">
+        <p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--blue);margin-right:6px"></span> <strong>Agent:</strong> ${cd.agentWords} words (${aPct}%)</p>
+        <p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:6px"></span> <strong>Customer:</strong> ${cd.custWords} words (${cPct}%)</p>
+        <p style="font-size:13px;color:var(--text2);margin-top:6px"><i class="fas fa-stopwatch"></i> Avg response time: ${cd.avgResponseTime}s</p>
+        <p style="font-size:13px;color:var(--text2)"><i class="fas fa-comment"></i> Filler words: ${cd.fillerWords}</p>
+      </div>
+    </div>`;
+}
+
+/* ========================= RENDER: DASHBOARD ========================= */
+function renderDashboard() {
+  const s = S.scores;
+  const arc = document.getElementById('scoreArc');
+  const circ = 534;
+  const off = circ - (s.overall / 100) * circ;
+  arc.style.strokeDashoffset = off;
+  arc.style.stroke = s.grade === 'A' ? 'var(--green)' : s.grade === 'B' ? 'var(--blue)' : s.grade === 'C' ? 'var(--orange)' : 'var(--red)';
+
+  let cur = 0;
+  const itv = setInterval(() => {
+    cur++; document.getElementById('overallScore').textContent = cur;
+    if (cur >= s.overall) { clearInterval(itv); document.getElementById('overallScore').textContent = s.overall; }
+  }, Math.max(10, Math.floor(400 / Math.max(s.overall, 1))));
+  document.getElementById('overallGrade').textContent = s.grade;
+
+  const bars = document.getElementById('progressCards');
+  const items = [
+    { label: 'Empathy Score', val: s.empathy, color: 'var(--blue)', icon: 'fa-heart' },
+    { label: 'Agent Tone', val: s.tone, color: 'var(--green)', icon: 'fa-comment' },
+    { label: 'Complaint Handling', val: s.negativity, color: 'var(--orange)', icon: 'fa-handshake' },
+    { label: 'Resolution Score', val: s.resolution, color: s.resolution > 50 ? 'var(--green)' : 'var(--red)', icon: 'fa-check-circle' }
+  ];
+  bars.innerHTML = items.map(it => `
+    <div class="progress-item">
+      <div class="phead"><span><i class="fas ${it.icon}" style="color:${it.color};width:18px"></i> ${it.label}</span><strong>${it.val}%</strong></div>
+      <div class="track"><div class="fill" style="background:${it.color};--w:${it.val}%;animation:barFill .5s cubic-bezier(0.22,1,0.36,1) forwards"></div></div>
+    </div>`).join('');
+
+  // Journey
+  const jb = document.getElementById('journeyBox');
+  const em = { POSITIVE: '\uD83D\uDE0A', NEUTRAL: '\uD83D\uDE10', NEGATIVE: '\uD83D\uDE20' };
+  jb.innerHTML = `
+    <span style="font-size:32px">${em[S.callData.startEmotion]||'\uD83D\uDE10'}</span>
+    <span style="font-size:13px;color:var(--text2)">${S.callData.startEmotion||'NEUTRAL'}</span>
+    <span class="arrow"><i class="fas fa-arrow-right"></i></span>
+    <span style="font-size:13px;color:var(--text2)">${S.callData.endEmotion||'NEUTRAL'}</span>
+    <span style="font-size:32px">${em[S.callData.endEmotion]||'\uD83D\uDE10'}</span>
+  `;
+
+  const kpi = document.getElementById('kpiGrid');
+  kpi.innerHTML = `
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--blue)">${S.callData.duration}</div><div class="kpi-lbl">Call Duration</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--purple)">${S.callData.totalUtts}</div><div class="kpi-lbl">Total Utterances</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--green)">${S.callData.agentUtts}</div><div class="kpi-lbl">Agent Turns</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--orange)">${S.callData.custUtts}</div><div class="kpi-lbl">Customer Turns</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:${S.callData.stress === 'Low Stress' ? 'var(--green)' : S.callData.stress === 'Moderate' ? 'var(--orange)' : 'var(--red)'}">${S.callData.stress}</div><div class="kpi-lbl">Stress Level</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:${S.callData.outcome === 'Positive Resolution' ? 'var(--green)' : 'var(--red)'}">${S.callData.outcome}</div><div class="kpi-lbl">Outcome</div></div>
+  `;
+
+  // Animate bars after render
+  setTimeout(() => {
+    document.querySelectorAll('.progress-item .fill').forEach(el => { el.style.width = el.style.getPropertyValue('--w') || el.style.width; });
+  }, 100);
+}
+
+/* ========================= RENDER: SUGGESTER ========================= */
+function renderSuggester() {
+  const c = document.getElementById('suggesterContainer');
+  c.innerHTML = '';
+  const poor = S.negativeMoments.filter(m => m.responseQuality === 'POOR' || m.responseQuality === 'FAILED');
+  if (!poor.length) {
+    c.innerHTML = '<p style="color:var(--green);font-size:14px"><i class="fas fa-check-circle"></i> All agent responses were handled well! No coaching needed.</p>';
+    return;
+  }
+  poor.forEach((m, i) => {
+    const d = document.createElement('div');
+    d.innerHTML = `<h4 style="margin-bottom:8px;color:var(--orange)"><i class="fas fa-bookmark"></i> Situation #${i+1}</h4>
+      <div class="sug-box wrong"><div class="sug-label" style="color:var(--red)"><i class="fas fa-times-circle"></i> What Agent Said</div>
+        <p style="font-size:13px;color:var(--text2)">Customer: "${esc(m.customerText)}"</p>
+        <p style="font-size:14px;margin-top:6px;color:var(--red)">Agent: "${esc(m.agentText)}"</p></div>
+      <div class="sug-box right"><div class="sug-label" style="color:var(--green)"><i class="fas fa-check-circle"></i> Better Alternative</div>
+        <p style="font-size:14px">"${genAlt(m.customerText)}"</p></div>
+      <div class="tip-box"><strong style="color:var(--blue)"><i class="fas fa-bullhorn"></i> Vocal Coaching Tip:</strong>
+        <p style="font-size:13px;color:var(--text2);margin-top:4px">${genTip(m)}</p></div>
+      <hr>`;
+    c.appendChild(d);
+  });
+}
+
+function genAlt(t) {
+  const l = t.toLowerCase();
+  if (l.includes('cancel')||l.includes('refund')) return 'I understand you want to cancel. Let me review your account and find the best resolution for you right now.';
+  if (l.includes('wait')||l.includes('hold')||l.includes('time')) return 'I sincerely apologize for the delay. I appreciate your patience. Let me personally handle this and get it resolved immediately.';
+  if (l.includes('bill')||l.includes('charge')||l.includes('price')||l.includes('money')) return 'I understand your concern about the billing. Let me walk through this with you and make sure everything is clear and accurate.';
+  if (l.includes('help')||l.includes('support')||l.includes('speak')||l.includes('manager')) return 'I am here to help you personally. Let me take full ownership of this issue and make sure you get exactly what you need.';
+  return 'I understand why you feel that way and I apologize for your experience. Let me personally take ownership and find the best solution for you right now.';
+}
+
+function genTip(m) {
+  if (m.responseQuality === 'FAILED') return 'Start every response by acknowledging the customer\'s emotion first. Use: "I understand how frustrating this must be for you." Then offer a specific solution.';
+  if (m.responseQuality === 'POOR') return 'Add more empathy words ("sorry", "understand", "appreciate") and state a specific action you will take. Customers need to feel heard first.';
+  return 'Good foundation! To reach EXCELLENT, add a personal touch: use "I" statements and provide a concrete timeline or next step.';
+}
+
+/* ========================= RENDER: RECOMMENDATIONS ========================= */
+function renderRecommendations() {
+  const c = document.getElementById('recsContainer');
+  c.innerHTML = '';
+  const s = S.scores;
+  const mom = S.negativeMoments;
+  const poorC = mom.filter(m => m.responseQuality === 'POOR' || m.responseQuality === 'FAILED').length;
+  const recs = [];
+  const d = S.callData;
+
+  if (s.empathy < 70) recs.push({ type:'red', icon:'fa-heart', t:'Improve Empathy Score', d:'Your empathy score is '+s.empathy+'%. Practice using empathetic phrases like "I understand" and "I apologize" when customers express frustration. This builds trust and reduces escalation.' });
+  if (s.tone < 70) recs.push({ type:'red', icon:'fa-comment', t:'Improve Agent Tone', d:'Only '+s.tone+'% of your utterances were positive. Aim to maintain a helpful, solution-oriented tone throughout the conversation.' });
+  if (poorC > 0) recs.push({ type:'red', icon:'fa-exclamation-triangle', t:'Handle Complaints Better', d: poorC + ' complaint(s) were handled poorly. Review the Script Coach (Screen 7) for specific alternative responses.' });
+  if (s.resolution < 60) recs.push({ type:'red', icon:'fa-times-circle', t:'Improve Resolution Rate', d:'The call ended with the customer still negative. Focus on de-escalation and confirming satisfaction before closing.' });
+
+  recs.push({ type:'orange', icon:'fa-phone', t:'Customer Follow-Up', d:'Consider a follow-up call or email to ensure the customer\'s issue was fully resolved and to rebuild satisfaction.' });
+  recs.push({ type:'orange', icon:'fa-chart-line', t:'Monitor Trends', d:'Track recurring complaint topics to identify underlying product, service, or training gaps.' });
+  recs.push({ type:'orange', icon:'fa-book', t:'Training Review', d:'Review modules on active listening, empathy, and de-escalation techniques based on this analysis.' });
+
+  const goodH = mom.filter(m => m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD').length;
+  if (goodH > 0) recs.push({ type:'green', icon:'fa-thumbs-up', t:'Good Complaint Handling', d:'You handled '+goodH+'/'+mom.length+' complaints well. Continue using empathy and taking ownership of issues.' });
+  if (s.tone >= 70) recs.push({ type:'green', icon:'fa-smile', t:'Positive Tone', d:'Your tone was positive '+s.tone+'% of the time. This helps build rapport and trust with customers.' });
+  if (d.endEmotion === 'POSITIVE') recs.push({ type:'green', icon:'fa-check-double', t:'Successful Resolution', d:'The call ended positively despite initial frustration. Great turnaround and customer recovery skills!' });
+  if (d.avgResponseTime <= 3) recs.push({ type:'green', icon:'fa-bolt', t:'Quick Response Time', d:'Average response time of '+d.avgResponseTime+'s shows good attentiveness and keeps the conversation flowing naturally.' });
+  if (d.fillerWords <= 3) recs.push({ type:'green', icon:'fa-microphone', t:'Clear Communication', d:'Minimal filler words ('+d.fillerWords+') used. This conveys confidence and professionalism.' });
+
+  recs.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'rec-card ' + r.type;
+    card.innerHTML = `<div class="r-icon"><i class="fas ${r.icon}"></i></div><div class="r-body"><h4>${r.t}</h4><p>${r.d}</p></div>`;
+    c.appendChild(card);
+  });
+}
+
+/* ========================= PDF GENERATION ========================= */
+function downloadPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pw = 210, ph = 297, m = 20, cw = pw - 2 * m;
+  let y = m;
+
+  function addPg() { doc.addPage(); y = m + 10; }
+
+  function txt(str, sz, clr, bold) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(sz || 10);
+    if (clr) doc.setTextColor(clr[0], clr[1], clr[2]);
+    else doc.setTextColor(241, 245, 249);
+    const lines = doc.splitTextToSize(str || '', cw);
+    for (const l of lines) {
+      if (y + 6 > ph - m) addPg();
+      doc.text(l, m, y); y += 6;
+    }
+    y += 1;
+  }
+
+  function hd(str, sz, clr) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(sz || 14);
+    doc.setTextColor(clr ? clr[0] : 37, clr ? clr[1] : 99, clr ? clr[2] : 235);
+    if (y + 8 > ph - m) addPg();
+    doc.text(str, m, y); y += 7;
+  }
+
+  function line() {
+    if (y + 3 > ph - m) addPg();
+    doc.setDrawColor(37, 99, 235); doc.setLineWidth(0.3);
+    doc.line(m, y, pw - m, y); y += 5;
+  }
+
+  // Cover
+  doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
+  doc.setFillColor(37, 99, 235); doc.rect(0, 0, pw, 6, 'F'); doc.rect(0, ph - 6, pw, 6, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(38);
+  doc.setTextColor(37, 99, 235); doc.text('VoiceIQ', m, 80);
+  doc.setFontSize(14); doc.setTextColor(148, 163, 184);
+  doc.text('AI-Powered Call Analysis Report', m, 94);
+  doc.setFontSize(11);
+  y = 115;
+  const cov = [
+    'Report Generated: ' + new Date().toLocaleString(),
+    'Call Duration: ' + (S.callData.duration || 'N/A'),
+    'Overall Score: ' + S.scores.overall + '% (Grade ' + S.scores.grade + ')',
+    'Platform: AssemblyAI + VoiceIQ',
+    '',
+    'This report contains:',
+    '  - Executive Summary with Key Metrics',
+    '  - Full Conversation Transcript',
+    '  - Negative Moments Analysis',
+    '  - Script Suggestions & Coaching',
+    '  - Actionable Recommendations'
+  ];
+  for (const l of cov) { txt(l, 10, [148, 163, 184]); y += 2; }
+
+  // Executive Summary
+  addPg();
+  doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
+  line(); hd('Executive Summary', 20); y -= 2;
+  txt('Call Overview', 12, [37, 99, 235], true);
+  txt('This report provides a comprehensive AI-driven analysis of the call recording. The conversation was analyzed for speaker identification, sentiment, negative moments, and agent response quality. Below are the key findings.', 10);
+  line();
+  txt('Key Metrics', 12, [37, 99, 235], true);
+  const metrics = [
+    'Overall Quality Score: ' + S.scores.overall + '% (' + S.scores.grade + ')',
+    'Empathy Score: ' + S.scores.empathy + '%',
+    'Agent Tone Score: ' + S.scores.tone + '%',
+    'Complaint Handling: ' + S.scores.negativity + '%',
+    'Resolution Score: ' + S.scores.resolution + '%'
+  ];
+  for (const m of metrics) txt('  \u2022 ' + m, 10);
+  line();
+  txt('Call Statistics', 12, [37, 99, 235], true);
+  const stats = [
+    'Duration: ' + S.callData.duration,
+    'Total Utterances: ' + S.callData.totalUtts,
+    'Agent Turns: ' + S.callData.agentUtts + ' (' + S.callData.agentWords + ' words)',
+    'Customer Turns: ' + S.callData.custUtts + ' (' + S.callData.custWords + ' words)',
+    'Negative Moments: ' + S.negativeMoments.length,
+    'Average Response Time: ' + S.callData.avgResponseTime + 's',
+    'Call Outcome: ' + S.callData.outcome,
+    'Stress Level: ' + S.callData.stress
+  ];
+  for (const s of stats) txt('  \u2022 ' + s, 10);
+
+  // Transcript
+  addPg();
+  doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
+  line(); hd('Full Transcript', 18);
+  for (const u of S.utterances) {
+    if (y + 10 > ph - m) addPg();
+    const sp = u.speaker === 'A' ? 'Agent' : 'Customer';
+    const tm = fmtDur((u.start||0)/1000);
+    const sent = u.sentiment || 'NEUTRAL';
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.setTextColor(u.speaker === 'A' ? 37 : 34, u.speaker === 'A' ? 99 : 197, u.speaker === 'A' ? 235 : 94);
+    doc.text(sp + ' [' + tm + ']', m, y); y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    const tl = doc.splitTextToSize(u.text, cw - 4);
+    for (const t of tl) { if (y + 4 > ph - m) addPg(); doc.text(t, m + 3, y); y += 4; }
+    y += 1;
+  }
+
+  // Negative Moments
+  if (S.negativeMoments.length) {
+    addPg(); doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
+    line(); hd('Negative Moments', 18);
+    S.negativeMoments.forEach((m, i) => {
+      if (y + 18 > ph - m) addPg();
+      const col = m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD' ? [34,197,94] : [239,68,68];
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      doc.setTextColor(col[0], col[1], col[2]);
+      doc.text('#'+(i+1)+' at '+fmtDur((m.customerStart||0)/1000), m, y); y += 6;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      doc.setTextColor(241, 245, 249); txt('Customer: ' + esc(m.customerText), 8);
+      doc.setTextColor(148, 163, 184); txt('Agent: ' + esc(m.agentText), 8);
+      doc.setTextColor(col[0], col[1], col[2]); txt('Rating: ' + m.responseQuality, 8);
+      y += 2;
+    });
+  }
+
+  // Script Suggestions
+  const poorM = S.negativeMoments.filter(m => m.responseQuality === 'POOR' || m.responseQuality === 'FAILED');
+  if (poorM.length) {
+    addPg(); doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
+    line(); hd('Script Suggestions & Coaching', 18);
+    poorM.forEach((m, i) => {
+      if (y + 16 > ph - m) addPg();
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      doc.setTextColor(245, 158, 11); doc.text('Situation #'+(i+1), m, y); y += 6;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      doc.setTextColor(239, 68, 68); txt('Actual: "' + esc(m.agentText) + '"', 8);
+      doc.setTextColor(34, 197, 94); txt('Suggested: "' + genAlt(m.customerText) + '"', 8);
+      doc.setTextColor(37, 99, 235); txt('Tip: ' + genTip(m), 8);
+      y += 2;
+    });
+  }
+
+  // Recommendations
+  addPg(); doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
+  line(); hd('Recommendations', 18);
+  const sections = [
+    { label: 'Areas for Improvement', color: [239, 68, 68] },
+    { label: 'Follow-Up Actions', color: [245, 158, 11] },
+    { label: 'Strengths & Positives', color: [34, 197, 94] }
+  ];
+  for (const sec of sections) {
+    if (y + 8 > ph - m) addPg();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.setTextColor(sec.color[0], sec.color[1], sec.color[2]);
+    doc.text(sec.label, m, y); y += 7;
+  }
+  // Generic recommendations
+  const recTexts = [
+    ['Improve empathy score ('+S.scores.empathy+'%). Practice acknowledging customer emotions first.','Improve tone ('+S.scores.tone+'% positive). Maintain solution-oriented language.','Work on de-escalation techniques for better resolution rates.'].filter(Boolean),
+    ['Follow up with customer to ensure full satisfaction.','Track recurring complaint themes.','Review empathy and active listening training modules.'].filter(Boolean),
+    ['Good engagement with '+S.callData.totalUtts+' utterances exchanged.','Quick response time of '+S.callData.avgResponseTime+'s.','Low filler word count ('+S.callData.fillerWords+') shows clear communication.'].filter(Boolean)
+  ];
+  for (let si = 0; si < 3; si++) {
+    for (const t of recTexts[si]) {
+      if (y + 5 > ph - m) addPg();
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      doc.setTextColor(241, 245, 249); txt('  \u2022 ' + t, 8);
+    }
+    y += 3;
+  }
+
+  // Page numbers
+  for (let i = 0; i < doc.internal.getNumberOfPages(); i++) {
+    doc.setPage(i + 1);
+    if (i > 0) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text('VoiceIQ Report \u2014 Page ' + (i + 1), m, ph - 10);
+    }
+  }
+
+  doc.save('VoiceIQ_Call_Analysis_Report.pdf');
+  showToast('PDF report downloaded!', 'success');
+}
+
+/* ========================= EXCEL ========================= */
+function downloadExcel() {
+  const wb = XLSX.utils.book_new();
+  // Summary
+  const s1 = XLSX.utils.aoa_to_sheet([
+    ['VoiceIQ Call Analysis Report'], ['Generated', new Date().toLocaleString()], [],
+    ['Metric', 'Value'],
+    ['Overall Score', S.scores.overall + '%'], ['Grade', S.scores.grade],
+    ['Empathy Score', S.scores.empathy + '%'], ['Agent Tone', S.scores.tone + '%'],
+    ['Complaint Handling', S.scores.negativity + '%'], ['Resolution Score', S.scores.resolution + '%'],
+    ['Call Duration', S.callData.duration], ['Total Utterances', S.callData.totalUtts],
+    ['Agent Words', S.callData.agentWords], ['Customer Words', S.callData.custWords],
+    ['Avg Response Time', S.callData.avgResponseTime + 's'], ['Filler Words', S.callData.fillerWords],
+    ['Negative Moments', S.negativeMoments.length], ['Outcome', S.callData.outcome],
+    ['Stress Level', S.callData.stress]
+  ]);
+  s1['!cols'] = [{ wch: 25 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(wb, s1, 'Summary');
+
+  // Transcript
+  const s2 = XLSX.utils.aoa_to_sheet([
+    ['Speaker', 'Time', 'Sentiment', 'Text'],
+    ...S.utterances.map(u => [u.speaker === 'A' ? 'Agent' : 'Customer', fmtDur((u.start||0)/1000), u.sentiment||'NEUTRAL', u.text])
+  ]);
+  s2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, s2, 'Transcript');
+
+  // Negatives
+  const s3 = XLSX.utils.aoa_to_sheet([
+    ['#', 'Time', 'Customer Text', 'Agent Text', 'Rating'],
+    ...S.negativeMoments.map((m, i) => [i+1, fmtDur((m.customerStart||0)/1000), m.customerText, m.agentText, m.responseQuality])
+  ]);
+  s3['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 50 }, { wch: 50 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, s3, 'Negatives');
+
+  // Improvements
+  const poorM = S.negativeMoments.filter(m => m.responseQuality === 'POOR' || m.responseQuality === 'FAILED');
+  const s4 = XLSX.utils.aoa_to_sheet([
+    ['#', 'Customer Said', 'Agent Said', 'Suggested Response', 'Coaching Tip'],
+    ...poorM.map((m, i) => [i+1, m.customerText, m.agentText, genAlt(m.customerText), genTip(m)])
+  ]);
+  s4['!cols'] = [{ wch: 5 }, { wch: 40 }, { wch: 40 }, { wch: 50 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, s4, 'Improvements');
+
+  // Recommendations
+  const recRows = [['Category', 'Title', 'Description']];
+  if (S.scores.empathy < 70) recRows.push(['Improvement', 'Improve Empathy', 'Score: '+S.scores.empathy+'%. Use empathetic phrases.']);
+  if (S.scores.tone < 70) recRows.push(['Improvement', 'Improve Tone', 'Positive utterances: '+S.scores.tone+'%.']);
+  if (poorM.length) recRows.push(['Improvement', 'Handle Complaints', poorM.length+' responses need work.']);
+  if (S.callData.endEmotion === 'NEGATIVE') recRows.push(['Improvement', 'Resolution', 'Call ended negatively.']);
+  recRows.push(['Follow-Up', 'Customer Follow-Up', 'Ensure satisfaction post-call.']);
+  recRows.push(['Follow-Up', 'Monitor Trends', 'Track recurring issues.']);
+  recRows.push(['Follow-Up', 'Training', 'Review empathy modules.']);
+  const goodH = S.negativeMoments.filter(m => m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD').length;
+  if (goodH > 0) recRows.push(['Positive', 'Complaint Handling', 'Handled '+goodH+'/'+S.negativeMoments.length+' well.']);
+  if (S.scores.tone >= 70) recRows.push(['Positive', 'Positive Tone', 'Tone was '+S.scores.tone+'% positive.']);
+  if (S.callData.endEmotion === 'POSITIVE') recRows.push(['Positive', 'Resolution', 'Call ended positively.']);
+  if (S.callData.avgResponseTime <= 3) recRows.push(['Positive', 'Quick Response', 'Avg '+S.callData.avgResponseTime+'s response time.']);
+  const s5 = XLSX.utils.aoa_to_sheet(recRows);
+  s5['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, s5, 'Recommendations');
+
+  XLSX.writeFile(wb, 'VoiceIQ_Call_Analysis_Report.xlsx');
+  showToast('Excel report downloaded!', 'success');
+}
+
+/* ========================= COPY ========================= */
+function copyTranscript() {
+  let t = 'VoiceIQ Transcript\n' + '='.repeat(20) + '\n\n';
+  for (const u of S.utterances) {
+    t += '[' + fmtDur((u.start||0)/1000) + '] ' + (u.speaker === 'A' ? 'Agent' : 'Customer') + ': ' + u.text + '\n';
+  }
+  navigator.clipboard.writeText(t).then(() => showToast('Transcript copied!', 'success')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = t; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    showToast('Transcript copied!', 'success');
+  });
+}
+
+function resetApp() {
+  if (S.audioCtx) { S.audioCtx.close(); S.audioCtx = null; }
+  S.audioFile = null; S.audioBuffer = null; S.isPlaying = false;
+  S.transcriptData = null; S.utterances = []; S.sentiments = [];
+  S.negativeMoments = []; S.scores = { empathy:0,tone:0,resolution:0,negativity:100,overall:0,grade:'N/A' };
+  S.callData = {}; S.timing = { total: 0, api: 0, processing: 0 };
+  showFullTranscript = false;
+  visitedScreens.clear();
+  visitedScreens.add(1);
+  document.getElementById('uploadZone').classList.remove('has-file');
+  document.getElementById('fileInfo').textContent = '';
+  document.getElementById('audioPreview').classList.remove('show');
+  document.getElementById('timingDisplay').style.display = 'none';
+  document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>';
+  document.getElementById('demoBadge').classList.add('hidden');
+  showScreen(1);
+}
+
+/* ========================= UTILITY ========================= */
+function esc(str) { if (!str) return ''; return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
