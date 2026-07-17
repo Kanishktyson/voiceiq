@@ -268,6 +268,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="step" data-step="6"><div class="step-icon pending" id="sicon6"><i class="fas fa-chart-bar"></i></div><div class="step-label">Calculate Scores</div><div class="step-status" id="sstatus6">Pending</div></div>
 <div class="step" data-step="7"><div class="step-icon pending" id="sicon7"><i class="fas fa-file-alt"></i></div><div class="step-label">Generate Report</div><div class="step-status" id="sstatus7">Pending</div></div>
 </div>
+<div id="whisperProgress" style="margin-top:8px;display:none">
+<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:4px"><span id="whisperLabel">Downloading Whisper model (150MB)...</span><span id="whisperPct">0%</span></div>
+<div class="progress-track" style="height:6px;border-radius:4px"><div class="progress-fill" id="whisperFill" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--purple))"></div></div>
+</div>
 <div id="timingDisplay" style="margin-top:12px;font-size:12px;color:var(--text2);text-align:center;display:none">
 <i class="fas fa-stopwatch"></i> Total: <span id="totalTime">0.0</span>s &middot; API: <span id="apiTime">0.0</span>s &middot; Processing: <span id="procTime">0.0</span>s
 </div>
@@ -438,7 +442,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card" style="text-align:left">
 <div class="card-title"><i class="fas fa-clock-rotate" style="color:var(--purple)"></i> Call History</div>
 <div id="historyPanel"><p style="color:var(--text2);font-size:13px;margin:12px 0">Loading...</p></div>
-<button class="btn btn-secondary btn-sm" onclick="showCallHistoryPanel()" style="margin-top:8px;font-size:12px"><i class="fas fa-rotate"></i> Refresh</button>
+<button class="btn btn-secondary btn-sm" onclick="var v=document.getElementById('histSearch');showCallHistoryPanel(v?v.value:'')" style="margin-top:8px;font-size:12px"><i class="fas fa-rotate"></i> Refresh</button>
 </div>
 <div class="card" style="text-align:center;background:rgba(139,92,246,0.04);border-color:rgba(139,92,246,0.15)">
 <div class="card-title justify-center" style="color:var(--purple)"><i class="fab fa-github"></i> Deploy on GitHub Pages</div>
@@ -766,6 +770,13 @@ async function runAnalysis() {
     S.timing.api = (performance.now() - apiStart) / 1000;
     updateProgress(37);
 
+    // Progressive: show transcript immediately while rest runs in background
+    renderTranscript();
+    showScreen(3);
+    showToast('Transcript ready — analysis continuing', 'info');
+
+    await sleep(10); // yield to UI
+
     // Step 3: Sentiment
     updateStep(3, 'running');
     S.sentiments = S.utterances.map(u => ({
@@ -773,29 +784,38 @@ async function runAnalysis() {
       start: u.start, end: u.end, confidence: u.confidence || 0
     }));
     updateStep(3, 'done'); updateProgress(50);
+    await sleep(5);
 
     // Step 4: Negative moments
     updateStep(4, 'running');
     S.negativeMoments = findNegatives();
     updateStep(4, 'done'); updateProgress(62);
+    renderNegatives();
+    await sleep(5);
 
     // Step 5: Evaluate
     updateStep(5, 'running');
     evaluateAll();
     updateStep(5, 'done'); updateProgress(75);
+    renderSuggester();
+    await sleep(5);
 
-    // Step 6: Scores
+    // Step 6: Scores (worker-like batch via cooperative yielding)
     updateStep(6, 'running');
-    calcScores();
-    calcSentimentTrend();
-    detectInterruptions();
-    calcTalkBalance();
-    extractKeywords();
-    analyzeWordPatterns();
+    calcScores(); await sleep(2);
+    calcSentimentTrend(); await sleep(2);
+    detectInterruptions(); await sleep(2);
+    calcTalkBalance(); await sleep(2);
+    extractKeywords(); await sleep(2);
+    analyzeWordPatterns(); await sleep(2);
     analyzeTurnTaking();
     updateStep(6, 'done');
     document.getElementById('sstatus6').textContent = 'Score: ' + S.scores.overall + '% (' + S.scores.grade + ')';
     updateProgress(87);
+    renderDashboard();
+    renderTalkRatio();
+    renderAudioQuality();
+    await sleep(5);
 
     // Step 7: Report
     updateStep(7, 'running');
@@ -811,7 +831,7 @@ async function runAnalysis() {
     document.getElementById('procTime').textContent = S.timing.processing.toFixed(1);
 
     saveCallHistory();
-    setTimeout(() => { showToast('Analysis complete!', 'success'); showScreen(3); }, 600);
+    showToast('Full analysis complete!', 'success');
 
   } catch (err) {
     console.error(err);
@@ -996,18 +1016,38 @@ async function runWhisperFallback() {
   var isHindi = lang === 'hi';
   var modelName = isHindi ? 'Xenova/whisper-tiny' : 'Xenova/whisper-base.en';
   var sizeLabel = isHindi ? '75MB' : '150MB';
-  showToast('Downloading Whisper ' + modelName.split('/')[1] + ' (' + sizeLabel + ')...', 'info');
+  var wp = document.getElementById('whisperProgress');
+  var wf = document.getElementById('whisperFill');
+  var wl = document.getElementById('whisperLabel');
+  var wpct = document.getElementById('whisperPct');
+  if (wp) wp.style.display = 'block';
   updateStep(1, 'running');
   document.getElementById('sstatus1').textContent = 'Loading Whisper...';
+  // Check if model is already cached in IndexedDB
+  var cacheKey = 'voiceiq_model_' + modelName.replace(/\//g, '_');
+  var isCached = false;
+  try { isCached = !!sessionStorage.getItem(cacheKey); } catch(e){}
+  if (isCached && wl) wl.textContent = 'Whisper model cached — loading...';
+  else if (wl) wl.textContent = 'Downloading Whisper ' + modelName.split('/')[1] + ' (' + sizeLabel + ')...';
   var pipe;
   try {
     var mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
     pipe = await mod.pipeline('automatic-speech-recognition', modelName, {
       quantized: true,
       progress_callback: function(p) {
-        if (p.status === 'progress') document.getElementById('sstatus1').textContent = 'Model: ' + Math.round(p.progress * 100) + '%';
+        if (p.status === 'progress') {
+          var pct = Math.round(p.progress * 100);
+          if (document.getElementById('sstatus1')) document.getElementById('sstatus1').textContent = 'Model: ' + pct + '%';
+          if (wf) wf.style.width = pct + '%';
+          if (wpct) wpct.textContent = pct + '%';
+        }
       }
     });
+    // Mark cached for next time
+    try { sessionStorage.setItem(cacheKey, '1'); } catch(e){}
+    if (wf) wf.style.width = '100%';
+    if (wpct) wpct.textContent = '100%';
+    setTimeout(function() { if (wp) wp.style.display = 'none'; }, 800);
   } catch(e) { throw new Error('Whisper model failed to load: ' + e.message); }
   updateStep(1, 'done');
   updateStep(2, 'running');
@@ -2349,7 +2389,9 @@ function analyzeTurnTaking() {
   };
 }
 
-/* ===== CALL HISTORY (localStorage) ===== */
+/* ===== CALL HISTORY (localStorage) with Search & Compare ===== */
+var compareSelection = [];
+
 function saveCallHistory() {
   var hist = JSON.parse(localStorage.getItem('voiceiq_history') || '[]');
   var entry = {
@@ -2374,23 +2416,139 @@ function clearCallHistory() {
   showCallHistoryPanel();
 }
 
-function showCallHistoryPanel() {
+function showCallHistoryPanel(filter) {
   var panel = document.getElementById('historyPanel');
   if (!panel) return;
-  var hist = getCallHistory();
+  var allHist = getCallHistory();
+  var q = (filter || '').toLowerCase();
+  // Build list with original indices for load/compare
+  var hist = [];
+  for (var hi = 0; hi < allHist.length; hi++) {
+    var e = allHist[hi];
+    if (!q ||
+      (e.duration||'').toLowerCase().indexOf(q) >= 0 ||
+      (e.grade||'').toLowerCase().indexOf(q) >= 0 ||
+      (e.overall||'').toString().indexOf(q) >= 0 ||
+      new Date(e.date).toLocaleDateString().toLowerCase().indexOf(q) >= 0
+    ) hist.push({ entry: e, origIdx: hi });
+  }
   if (!hist.length) {
-    panel.innerHTML = '<p style="color:var(--text2);font-size:13px;margin:12px 0">No previous analyses yet.</p>';
+    panel.innerHTML = '<p style="color:var(--text2);font-size:13px;margin:12px 0">' + (q ? 'No matches found.' : 'No previous analyses yet.') + '</p>';
     return;
   }
-  panel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:var(--text2);font-size:12px">' + hist.length + ' saved call(s)</span><button class="btn btn-outline btn-sm" onclick="clearCallHistory()" style="font-size:11px;padding:4px 10px"><i class="fas fa-trash"></i> Clear</button></div>' +
-    hist.map(function(e, i) {
+  var searchBar = '<div style="display:flex;gap:6px;margin-bottom:6px"><input id="histSearch" type="text" placeholder="Search by grade, date, score..." value="' + (q||'') + '" oninput="showCallHistoryPanel(this.value)" style="flex:1;background:var(--bg2);border:1px solid rgba(148,163,184,0.2);border-radius:8px;padding:6px 10px;color:var(--text);font-size:12px;outline:none"><button class="btn btn-outline btn-sm" onclick="compareSelected()" style="font-size:11px;padding:4px 10px"><i class="fas fa-arrows-cross"></i> Compare (' + compareSelection.length + ')</button><button class="btn btn-outline btn-sm" onclick="clearCallHistory()" style="font-size:11px;padding:4px 10px"><i class="fas fa-trash"></i> Clear</button></div>';
+  panel.innerHTML = searchBar +
+    hist.map(function(item) {
+      var e = item.entry, idx = item.origIdx;
       var d = new Date(e.date);
       var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       var c = e.grade === 'A' ? 'var(--green)' : e.grade === 'B' ? 'var(--blue)' : e.grade === 'C' ? 'var(--orange)' : 'var(--red)';
-      return '<div class="hist-item" onclick="loadHistoryEntry(' + i + ')" style="border-bottom:1px solid rgba(148,163,184,0.1);padding:8px 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +
+      var checked = compareSelection.indexOf(idx) >= 0 ? 'checked' : '';
+      return '<div class="hist-item" style="border-bottom:1px solid rgba(148,163,184,0.1);padding:8px 0;display:flex;align-items:center;gap:6px">' +
+        '<input type="checkbox" ' + checked + ' onchange="toggleCompare(' + idx + ')" style="accent-color:var(--blue)">' +
+        '<div onclick="loadHistoryEntry(' + idx + ')" style="flex:1;cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +
         '<div><span style="font-size:13px;font-weight:600">' + ds + '</span><br><span style="font-size:11px;color:var(--text2)">' + e.duration + ' | ' + (e.callData ? (e.callData.agentUtts + e.callData.custUtts) : 0) + ' utts</span></div>' +
-        '<div style="text-align:right"><span style="font-size:16px;font-weight:700;color:' + c + '">' + e.overall + '%</span><br><span style="font-size:11px;color:' + c + '">' + e.grade + '</span></div></div>';
+        '<div style="text-align:right"><span style="font-size:16px;font-weight:700;color:' + c + '">' + e.overall + '%</span><br><span style="font-size:11px;color:' + c + '">' + e.grade + '</span></div></div></div>';
     }).join('');
+}
+
+function toggleCompare(idx) {
+  var p = compareSelection.indexOf(idx);
+  if (p >= 0) compareSelection.splice(p, 1);
+  else compareSelection.push(idx);
+  showCallHistoryPanel(document.getElementById('histSearch')?.value || '');
+}
+
+function compareSelected() {
+  if (compareSelection.length < 2) { showToast('Select at least 2 calls to compare', 'error'); return; }
+  var hist = getCallHistory();
+  var entries = compareSelection.map(function(i) { return hist[i]; }).filter(Boolean);
+  if (entries.length < 2) return;
+  // Build compare data and render overlay radar chart
+  var labels = ['Empathy','Tone','Resolution','Negativity','Balance','Interrupt','Pace','Turn','Keywords'];
+  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords'];
+  var colors = ['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+  var datasets = entries.map(function(e, i) {
+    var s = e.scores || {};
+    return { label: new Date(e.date).toLocaleDateString(), scores: keys.map(function(k) { return s[k] || 0; }), color: colors[i % colors.length] };
+  });
+  // Show compare panel
+  var panel = document.getElementById('historyPanel');
+  if (!panel) return;
+  var closeBtn = '<button class="btn btn-outline btn-sm" onclick="showCallHistoryPanel()" style="float:right;font-size:11px;padding:4px 10px"><i class="fas fa-xmark"></i> Close Compare</button>';
+  var html = '<div style="margin-bottom:8px"><h4 style="display:inline;font-size:14px"><i class="fas fa-arrows-cross" style="color:var(--orange)"></i> Call Comparison</h4>' + closeBtn + '</div>';
+  html += '<canvas id="compareRadar" style="width:100%;max-width:380px;margin:0 auto;display:block"></canvas>';
+  html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">';
+  datasets.forEach(function(ds) {
+    html += '<span style="font-size:11px;color:var(--text2)"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + ds.color + ';margin-right:4px"></span>' + ds.label + '</span>';
+  });
+  html += '</div>';
+  panel.innerHTML = html;
+  // Render overlay radar
+  setTimeout(function() { renderCompareRadar('compareRadar', datasets, labels); }, 50);
+}
+
+function renderCompareRadar(canvasId, datasets, labels) {
+  var cv = document.getElementById(canvasId);
+  if (!cv) return;
+  var rect = cv.parentElement.getBoundingClientRect();
+  var w = Math.max(rect.width - 32, 240);
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = w * dpr; cv.height = w * dpr;
+  cv.style.width = w + 'px'; cv.style.height = w + 'px';
+  var ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, w);
+  var cx = w / 2, cy = w / 2, r = w * 0.35;
+  var n = labels.length;
+  if (!datasets || !datasets.length) return;
+  // Grid rings
+  for (var ri = 0; ri <= 4; ri++) {
+    var gr = r * ri / 4;
+    ctx.beginPath();
+    for (var gi = 0; gi <= n; gi++) {
+      var ga = Math.PI * 2 * gi / n - Math.PI / 2;
+      var gx = cx + gr * Math.cos(ga), gy = cy + gr * Math.sin(ga);
+      gi === 0 ? ctx.moveTo(gx, gy) : ctx.lineTo(gx, gy);
+    }
+    ctx.strokeStyle = 'rgba(148,163,184,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  // Axis lines + labels
+  for (var ai = 0; ai < n; ai++) {
+    var aa = Math.PI * 2 * ai / n - Math.PI / 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(aa), cy + r * Math.sin(aa));
+    ctx.strokeStyle = 'rgba(148,163,184,0.1)'; ctx.stroke();
+    ctx.font = '9px Inter,sans-serif'; ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(labels[ai], cx + (r + 16) * Math.cos(aa), cy + (r + 16) * Math.sin(aa));
+  }
+  // Each dataset
+  datasets.forEach(function(ds) {
+    ctx.beginPath();
+    for (var di = 0; di <= n; di++) {
+      var idx = di % n;
+      var angle = Math.PI * 2 * idx / n - Math.PI / 2;
+      var val = Math.max(0, Math.min(100, ds.scores[idx] || 0)) / 100;
+      var x = cx + r * val * Math.cos(angle), y = cy + r * val * Math.sin(angle);
+      di === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = hexToRgba(ds.color, 0.08);
+    ctx.fill();
+    ctx.strokeStyle = ds.color; ctx.lineWidth = 2; ctx.stroke();
+    // Dots
+    for (var dj = 0; dj < n; dj++) {
+      var a2 = Math.PI * 2 * dj / n - Math.PI / 2;
+      var v2 = Math.max(0, Math.min(100, ds.scores[dj] || 0)) / 100;
+      var dx = cx + r * v2 * Math.cos(a2), dy = cy + r * v2 * Math.sin(a2);
+      ctx.beginPath(); ctx.arc(dx, dy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = ds.color; ctx.fill();
+    }
+  });
+}
+
+function hexToRgba(hex, a) {
+  var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')' : hex;
 }
 
 function loadHistoryEntry(idx) {
