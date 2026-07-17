@@ -766,7 +766,13 @@ async function runAnalysis() {
     // Step 6: Scores
     updateStep(6, 'running');
     calcScores();
-    updateStep(6, 'done'); updateProgress(87);
+    calcSentimentTrend();
+    detectInterruptions();
+    calcTalkBalance();
+    extractKeywords();
+    updateStep(6, 'done');
+    document.getElementById('sstatus6').textContent = 'Score: ' + S.scores.overall + '% (' + S.scores.grade + ')';
+    updateProgress(87);
 
     // Step 7: Report
     updateStep(7, 'running');
@@ -840,6 +846,10 @@ async function runBackendAnalysis() {
     document.getElementById('sstatus5').textContent = 'Responses evaluated';
     updateProgress(87);
 
+    calcSentimentTrend();
+    detectInterruptions();
+    calcTalkBalance();
+    extractKeywords();
     buildCallDataFromBackend(data);
     renderAll();
 
@@ -907,6 +917,10 @@ async function runDemoAnalysis() {
   S.negativeMoments = DEMO_NEGATIVE.map(m => ({ ...m }));
   evaluateAll();
   calcScores();
+  calcSentimentTrend();
+  detectInterruptions();
+  calcTalkBalance();
+  extractKeywords();
   buildCallData();
   renderAll();
   setTimeout(() => { showToast('Demo analysis complete!', 'success'); showScreen(3); }, 500);
@@ -1161,6 +1175,118 @@ function calcScores() {
   S.scores = { empathy: Math.round(empathy), tone: Math.round(tone), resolution: Math.round(resolution), negativity: Math.round(negativity), overall, grade };
 }
 
+/* ===== ADVANCED ALGORITHM: Sentiment Trend ===== */
+function calcSentimentTrend() {
+  var utts = S.utterances;
+  if (utts.length < 3) { S.sentimentTrend = { direction: 'STABLE', slope: 0, intervals: [] }; return; }
+  var intervals = [];
+  var segs = Math.min(5, Math.floor(utts.length / 3));
+  if (segs < 2) segs = 2;
+  var perSeg = Math.floor(utts.length / segs);
+  for (var i = 0; i < segs; i++) {
+    var slice = utts.slice(i * perSeg, (i + 1) * perSeg);
+    var pos = slice.filter(function(u) { return u.sentiment === 'POSITIVE'; }).length;
+    var neg = slice.filter(function(u) { return u.sentiment === 'NEGATIVE'; }).length;
+    intervals.push(slice.length > 0 ? (pos - neg) / slice.length : 0);
+  }
+  var n = intervals.length;
+  var xSum = 0, ySum = 0, xySum = 0, x2Sum = 0;
+  for (var j = 0; j < n; j++) {
+    xSum += j; ySum += intervals[j]; xySum += j * intervals[j]; x2Sum += j * j;
+  }
+  var slope = (n * xySum - xSum * ySum) / (n * x2Sum - xSum * xSum);
+  S.sentimentTrend = {
+    direction: slope > 0.05 ? 'IMPROVING' : slope < -0.05 ? 'DECLINING' : 'STABLE',
+    slope: Math.round(slope * 100) / 100,
+    intervals: intervals
+  };
+}
+
+/* ===== ADVANCED ALGORITHM: Interruption Detection ===== */
+function detectInterruptions() {
+  var utts = S.utterances;
+  if (utts.length < 2) { S.interruptions = { count: 0, list: [], score: 100 }; return; }
+  var list = [];
+  for (var i = 1; i < utts.length; i++) {
+    var prev = utts[i - 1];
+    var curr = utts[i];
+    if (prev.speaker !== curr.speaker) {
+      var gap = (curr.start || 0) - (prev.end || prev.start || 0);
+      if (gap < 0) { // Overlap
+        list.push({ idx: i, overlap: Math.round(Math.abs(gap) / 1000 * 10) / 10, text: curr.text.substring(0, 60) });
+      }
+    }
+  }
+  S.interruptions = {
+    count: list.length,
+    list: list,
+    score: Math.max(0, 100 - list.length * 12)
+  };
+}
+
+/* ===== ADVANCED ALGORITHM: Talk Balance Score ===== */
+function calcTalkBalance() {
+  var utts = S.utterances;
+  var aWords = 0, bWords = 0;
+  for (var i = 0; i < utts.length; i++) {
+    var wc = utts[i].text ? utts[i].text.split(/\s+/).length : 0;
+    if (utts[i].speaker === 'A') aWords += wc;
+    else bWords += wc;
+  }
+  var total = aWords + bWords;
+  if (total === 0) { S.talkBalance = { ratio: 0.5, score: 100, ideal: true }; return; }
+  var ratio = aWords / total;
+  var diff = Math.abs(ratio - 0.55);
+  var score = Math.max(0, Math.round(100 - diff * 200));
+  S.talkBalance = {
+    ratio: Math.round(ratio * 100) / 100,
+    agentPct: Math.round(ratio * 100),
+    custPct: 100 - Math.round(ratio * 100),
+    score: score,
+    ideal: diff < 0.1
+  };
+}
+
+/* ===== ADVANCED ALGORITHM: Keyword Coverage ===== */
+function extractKeywords() {
+  var texts = S.utterances.filter(function(u) { return u.speaker === 'A'; }).map(function(u) { return u.text; }).join(' ').toLowerCase();
+  var kw = ['refund','cancel','bill','charge','account','order','payment','support','help','problem','issue','error','wait','hold','time','price','policy','resolution','apology','compensation'];
+  var found = [];
+  for (var i = 0; i < kw.length; i++) {
+    if (texts.indexOf(kw[i]) !== -1) found.push(kw[i]);
+  }
+  S.keywords = {
+    total: kw.length,
+    found: found.length,
+    used: found,
+    score: Math.round((found.length / kw.length) * 100),
+    coverage: Math.round((found.length / kw.length) * 100) + '%'
+  };
+}
+
+/* ===== PROTOCOL: Analysis Pipeline ===== */
+var PROTOCOL = {
+  version: '2.0',
+  stages: [
+    { id: 'INGEST', name: 'Audio Ingestion', desc: 'Upload audio file to transcription service' },
+    { id: 'TRANSCRIBE', name: 'Transcription', desc: 'Convert speech to text with speaker labels' },
+    { id: 'TRANSLATE', name: 'Translation', desc: 'Convert non-English transcript to English' },
+    { id: 'SENTIMENT', name: 'Sentiment Analysis', desc: 'Classify each utterance as POSITIVE/NEUTRAL/NEGATIVE' },
+    { id: 'MOMENTS', name: 'Negative Moment Detection', desc: 'Find customer complaints and agent responses' },
+    { id: 'EVALUATE', name: 'Response Evaluation', desc: 'Score agent response quality' },
+    { id: 'SCORE', name: 'Comprehensive Scoring', desc: 'Compute empathy, tone, resolution, and overall scores' },
+    { id: 'TREND', name: 'Trend Analysis', desc: 'Sentiment trend, interruptions, talk balance, keywords' },
+    { id: 'REPORT', name: 'Report Generation', desc: 'Build call data, render dashboard, generate PDF/Excel' }
+  ],
+  dataFlow: 'INGEST -> TRANSCRIBE -> TRANSLATE -> SENTIMENT -> MOMENTS -> EVALUATE -> SCORE -> TREND -> REPORT',
+  getStage: function(id) {
+    for (var s = 0; s < PROTOCOL.stages.length; s++) {
+      if (PROTOCOL.stages[s].id === id) return PROTOCOL.stages[s];
+    }
+    return null;
+  }
+};
+
 function buildCallData() {
   const utts = S.utterances;
   const sents = S.sentiments;
@@ -1373,21 +1499,26 @@ function renderHeatmap() {
 
 /* ========================= RENDER: TALK RATIO ========================= */
 function renderTalkRatio() {
-  const c = document.getElementById('talkRatioContent');
-  const cd = S.callData;
-  const total = cd.agentWords + cd.custWords || 1;
-  const aPct = Math.round((cd.agentWords / total) * 100);
-  const cPct = Math.round((cd.custWords / total) * 100);
-  c.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap">
-      <div><div style="width:100px;height:100px;border-radius:50%;background:conic-gradient(var(--blue) 0% ${aPct}%, var(--green) ${aPct}% 100%);margin:0 auto"></div></div>
-      <div style="text-align:left">
-        <p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--blue);margin-right:6px"></span> <strong>Agent:</strong> ${cd.agentWords} words (${aPct}%)</p>
-        <p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:6px"></span> <strong>Customer:</strong> ${cd.custWords} words (${cPct}%)</p>
-        <p style="font-size:13px;color:var(--text2);margin-top:6px"><i class="fas fa-stopwatch"></i> Avg response time: ${cd.avgResponseTime}s</p>
-        <p style="font-size:13px;color:var(--text2)"><i class="fas fa-comment"></i> Filler words: ${cd.fillerWords}</p>
-      </div>
-    </div>`;
+  var c = document.getElementById('talkRatioContent');
+  var cd = S.callData;
+  var total = cd.agentWords + cd.custWords || 1;
+  var tb = S.talkBalance || { agentPct: 50, custPct: 50, score: 100, ideal: true };
+  var intr = S.interruptions || { count: 0, score: 100 };
+  var aPct = tb.agentPct;
+  var cPct = tb.custPct;
+  c.innerHTML = [
+    '<div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap">',
+      '<div><div style="width:100px;height:100px;border-radius:50%;background:conic-gradient(var(--blue) 0% ' + aPct + '%, var(--green) ' + aPct + '% 100%);margin:0 auto"></div></div>',
+      '<div style="text-align:left">',
+        '<p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--blue);margin-right:6px"></span> <strong>Agent:</strong> ' + cd.agentWords + ' words (' + aPct + '%)</p>',
+        '<p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:6px"></span> <strong>Customer:</strong> ' + cd.custWords + ' words (' + cPct + '%)</p>',
+        '<p style="font-size:13px;color:var(--text2);margin-top:6px"><i class="fas fa-stopwatch"></i> Avg response time: ' + cd.avgResponseTime + 's</p>',
+        '<p style="font-size:13px;color:var(--text2)"><i class="fas fa-regular fa-circle"></i> Filler words: ' + cd.fillerWords + '</p>',
+        '<p style="font-size:13px;color:' + (tb.ideal ? 'var(--green)' : 'var(--orange)') + '"><i class="fas fa-balance-scale"></i> Talk balance: ' + (tb.ideal ? 'Balanced' : 'Agent-heavy') + ' (' + tb.score + '%)</p>',
+        '<p style="font-size:13px;color:' + (intr.count < 3 ? 'var(--green)' : 'var(--orange)') + '"><i class="fas fa-hand-paper"></i> Interruptions: ' + intr.count + ' (' + intr.score + '%)</p>',
+      '</div>',
+    '</div>'
+  ].join('');
 }
 
 /* ========================= RENDER: DASHBOARD ========================= */
@@ -1431,14 +1562,22 @@ function renderDashboard() {
   `;
 
   const kpi = document.getElementById('kpiGrid');
-  kpi.innerHTML = `
-    <div class="kpi-card"><div class="kpi-num" style="color:var(--blue)">${S.callData.duration}</div><div class="kpi-lbl">Call Duration</div></div>
-    <div class="kpi-card"><div class="kpi-num" style="color:var(--purple)">${S.callData.totalUtts}</div><div class="kpi-lbl">Total Utterances</div></div>
-    <div class="kpi-card"><div class="kpi-num" style="color:var(--green)">${S.callData.agentUtts}</div><div class="kpi-lbl">Agent Turns</div></div>
-    <div class="kpi-card"><div class="kpi-num" style="color:var(--orange)">${S.callData.custUtts}</div><div class="kpi-lbl">Customer Turns</div></div>
-    <div class="kpi-card"><div class="kpi-num" style="color:${S.callData.stress === 'Low Stress' ? 'var(--green)' : S.callData.stress === 'Moderate' ? 'var(--orange)' : 'var(--red)'}">${S.callData.stress}</div><div class="kpi-lbl">Stress Level</div></div>
-    <div class="kpi-card"><div class="kpi-num" style="color:${S.callData.outcome === 'Positive Resolution' ? 'var(--green)' : 'var(--red)'}">${S.callData.outcome}</div><div class="kpi-lbl">Outcome</div></div>
-  `;
+  var trend = S.sentimentTrend || { direction: 'STABLE', slope: 0 };
+  var kwData = S.keywords || { coverage: '0%', score: 0, found: 0, total: 0 };
+  var intrData = S.interruptions || { count: 0, score: 100 };
+  var tbData = S.talkBalance || { score: 100, ideal: true };
+  var trendLabel = trend.direction === 'IMPROVING' ? 'Improving' : trend.direction === 'DECLINING' ? 'Declining' : 'Stable';
+  var trendColor = trend.direction === 'IMPROVING' ? 'var(--green)' : trend.direction === 'DECLINING' ? 'var(--red)' : 'var(--orange)';
+  kpi.innerHTML = [
+    '<div class="kpi-card"><div class="kpi-num" style="color:var(--blue)">' + S.callData.duration + '</div><div class="kpi-lbl">Call Duration</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:var(--purple)">' + S.callData.totalUtts + '</div><div class="kpi-lbl">Total Utts</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:var(--green)">' + S.callData.agentUtts + '</div><div class="kpi-lbl">Agent Turns</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:var(--orange)">' + S.callData.custUtts + '</div><div class="kpi-lbl">Customer Turns</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:' + trendColor + '">' + trendLabel + '</div><div class="kpi-lbl">Sentiment Trend</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:' + (intrData.count < 3 ? 'var(--green)' : 'var(--red)') + '">' + intrData.count + '</div><div class="kpi-lbl">Interruptions</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:var(--blue)">' + kwData.coverage + '</div><div class="kpi-lbl">Keyword Coverage</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:' + (tbData.ideal ? 'var(--green)' : 'var(--orange)') + '">' + tbData.score + '%</div><div class="kpi-lbl">Talk Balance</div></div>'
+  ].join('');
 
   // Animate bars after render
   setTimeout(() => {
