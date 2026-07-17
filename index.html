@@ -850,6 +850,7 @@ async function runAnalysis() {
     calcActiveListening(); await sleep(2);
     calcQuestionRatio(); await sleep(2);
     calcHedging(); await sleep(2);
+    calcEmotionalEcho(); await sleep(2);
     extractKeywords(); await sleep(2);
     analyzeWordPatterns(); await sleep(2);
     analyzeTurnTaking();
@@ -1248,7 +1249,7 @@ function calcScores() {
   var utts = S.utterances;
   var moments = S.negativeMoments;
   if (!utts.length) {
-    S.scores = { empathy:50,tone:50,resolution:50,negativity:50,balance:50,interrupt:50,pace:50,turn:50,keywords:50,listening:50,qratio:50,hedging:50,overall:50,grade:'C',all:{}};
+    S.scores = { empathy:50,tone:50,resolution:50,negativity:50,balance:50,interrupt:50,pace:50,turn:50,keywords:50,listening:50,qratio:50,hedging:50,echo:50,overall:50,grade:'C',all:{}};
     return;
   }
   var ec=0, et=0;
@@ -1277,10 +1278,11 @@ function calcScores() {
   var listening = S.activeListeningScore || 50;
   var qratio = S.questionRatioScore || 75;
   var hedging = S.hedgingScore || 75;
+  var echo = S.echoScore || 75;
   var overall = Math.round(
-    empathy*0.13 + tone*0.10 + resolution*0.10 + negativity*0.10 +
-    balance*0.08 + interrupt*0.08 + paceScore*0.08 + turn*0.08 + keywords*0.07 +
-    listening*0.07 + qratio*0.05 + hedging*0.06
+    empathy*0.11 + tone*0.09 + resolution*0.09 + negativity*0.09 +
+    balance*0.07 + interrupt*0.07 + paceScore*0.07 + turn*0.07 + keywords*0.06 +
+    listening*0.06 + qratio*0.05 + hedging*0.05 + echo*0.12
   );
   var grade = overall>90?'A':overall>80?'B':overall>70?'C':overall>55?'D':'F';
   S.scores = {
@@ -1289,9 +1291,10 @@ function calcScores() {
     interrupt: Math.round(interrupt), pace: Math.round(paceScore),
     turn: Math.round(turn), keywords: Math.round(keywords),
     listening: Math.round(listening), qratio: Math.round(qratio), hedging: Math.round(hedging),
+    echo: Math.round(echo),
     overall: overall, grade: grade,
-    all: { empathy,tone,resolution,negativity,balance,interrupt,paceScore,turn,keywords,listening,qratio,hedging },
-    labels: ['Empathy','Tone','Resolution','Negativity','Balance','Interruptions','Pace','Turn-taking','Keywords','Listening','Q Ratio','Hedging']
+    all: { empathy,tone,resolution,negativity,balance,interrupt,paceScore,turn,keywords,listening,qratio,hedging,echo },
+    labels: ['Empathy','Tone','Resolution','Negativity','Balance','Interruptions','Pace','Turn-taking','Keywords','Listening','Q Ratio','Hedging','Echo']
   };
 }
 
@@ -1747,7 +1750,8 @@ function renderDashboard() {
     { label: 'Empathy Score', val: s.empathy, color: 'var(--blue)', icon: 'fa-heart' },
     { label: 'Agent Tone', val: s.tone, color: 'var(--green)', icon: 'fa-comment' },
     { label: 'Complaint Handling', val: s.negativity, color: 'var(--orange)', icon: 'fa-handshake' },
-    { label: 'Resolution Score', val: s.resolution, color: s.resolution > 50 ? 'var(--green)' : 'var(--red)', icon: 'fa-check-circle' }
+    { label: 'Resolution Score', val: s.resolution, color: s.resolution > 50 ? 'var(--green)' : 'var(--red)', icon: 'fa-check-circle' },
+    { label: 'Emotional Echo', val: s.echo||75, color: 'var(--cyan)', icon: 'fa-wave-square' }
   ];
   bars.innerHTML = items.map(it => `
     <div class="progress-item">
@@ -1781,7 +1785,8 @@ function renderDashboard() {
     '<div class="kpi-card"><div class="kpi-num" style="color:' + trendColor + '">' + trendLabel + '</div><div class="kpi-lbl">Sentiment Trend</div></div>',
     '<div class="kpi-card"><div class="kpi-num" style="color:' + (intrData.count < 3 ? 'var(--green)' : 'var(--red)') + '">' + intrData.count + '</div><div class="kpi-lbl">Interruptions</div></div>',
     '<div class="kpi-card"><div class="kpi-num" style="color:var(--blue)">' + kwData.coverage + '</div><div class="kpi-lbl">Keyword Coverage</div></div>',
-    '<div class="kpi-card"><div class="kpi-num" style="color:' + (tbData.ideal ? 'var(--green)' : 'var(--orange)') + '">' + tbData.score + '%</div><div class="kpi-lbl">Talk Balance</div></div>'
+    '<div class="kpi-card"><div class="kpi-num" style="color:' + (tbData.ideal ? 'var(--green)' : 'var(--orange)') + '">' + tbData.score + '%</div><div class="kpi-lbl">Talk Balance</div></div>',
+    '<div class="kpi-card"><div class="kpi-num" style="color:var(--cyan)">' + (scr.echo||75) + '%</div><div class="kpi-lbl">Emotional Echo</div></div>'
   ].join('');
 
   // Animate bars after render
@@ -1792,7 +1797,7 @@ function renderDashboard() {
   // Radar chart
   var scr = S.scores;
   if (scr && scr.all) {
-    renderRadarChart('radarChart', [scr.empathy,scr.tone,scr.resolution,scr.negativity,scr.balance,scr.interrupt,scr.pace,scr.turn,scr.keywords,scr.listening||50,scr.qratio||75,scr.hedging||75], scr.labels);
+    renderRadarChart('radarChart', [scr.empathy,scr.tone,scr.resolution,scr.negativity,scr.balance,scr.interrupt,scr.pace,scr.turn,scr.keywords,scr.listening||50,scr.qratio||75,scr.hedging||75,scr.echo||75], scr.labels);
   }
 }
 
@@ -1985,7 +1990,7 @@ function downloadPDF() {
     var radarCanvas = document.getElementById('radarChart');
     if (radarCanvas) {
       var scr2 = S.scores;
-      if (scr2 && scr2.all) renderRadarChart('radarChart', [scr2.empathy,scr2.tone,scr2.resolution,scr2.negativity,scr2.balance,scr2.interrupt,scr2.pace,scr2.turn,scr2.keywords,scr2.listening||50,scr2.qratio||75,scr2.hedging||75], scr2.labels);
+      if (scr2 && scr2.all) renderRadarChart('radarChart', [scr2.empathy,scr2.tone,scr2.resolution,scr2.negativity,scr2.balance,scr2.interrupt,scr2.pace,scr2.turn,scr2.keywords,scr2.listening||50,scr2.qratio||75,scr2.hedging||75,scr2.echo||75], scr2.labels);
       var chartImg = radarCanvas.toDataURL('image/jpeg', 0.92);
       if (y + 70 > ph - m) pg();
       hd('Performance Radar', 16);
@@ -2168,6 +2173,7 @@ function downloadExcel() {
     ['Overall Score', S.scores.overall + '%'], ['Grade', S.scores.grade],
     ['Empathy Score', S.scores.empathy + '%'], ['Agent Tone', S.scores.tone + '%'],
     ['Complaint Handling', S.scores.negativity + '%'], ['Resolution Score', S.scores.resolution + '%'],
+    ['Emotional Echo', (S.scores.echo||75) + '%'],
     ['Call Duration', S.callData.duration], ['Total Utterances', S.callData.totalUtts],
     ['Agent Words', S.callData.agentWords], ['Customer Words', S.callData.custWords],
     ['Avg Response Time', S.callData.avgResponseTime + 's'], ['Filler Words', S.callData.fillerWords],
@@ -2538,8 +2544,8 @@ function compareSelected() {
   var entries = compareSelection.map(function(i) { return hist[i]; }).filter(Boolean);
   if (entries.length < 2) return;
   // Build compare data and render overlay radar chart
-  var labels = ['Empathy','Tone','Resolution','Negativity','Balance','Interrupt','Pace','Turn','Keywords'];
-  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords'];
+  var labels = ['Empathy','Tone','Resolution','Negativity','Balance','Interrupt','Pace','Turn','Keywords','Listening','Q Ratio','Hedging','Echo'];
+  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords','listening','qratio','hedging','echo'];
   var colors = ['#7c3aed','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
   var datasets = entries.map(function(e, i) {
     var s = e.scores || {};
@@ -2640,8 +2646,8 @@ function downloadCSV() {
   var s = S.scores;
   if (!s) { showToast('No scores to export', 'error'); return; }
   var rows = [['Metric','Score','Grade','Date'].join(',')];
-  var labels = ['Empathy','Tone','Resolution','Negativity Handling','Talk Balance','Interruptions','Pace','Turn-taking','Keywords','Active Listening','Question Ratio','Hedging'];
-  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords','listening','qratio','hedging'];
+  var labels = ['Empathy','Tone','Resolution','Negativity Handling','Talk Balance','Interruptions','Pace','Turn-taking','Keywords','Active Listening','Question Ratio','Hedging','Emotional Echo'];
+  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords','listening','qratio','hedging','echo'];
   var now = new Date().toISOString().split('T')[0];
   rows.push(['Overall Score', s.overall, s.grade, now].join(','));
   keys.forEach(function(k, i) { rows.push([labels[i], s[k] || 0, s.grade, now].join(',')); });
@@ -2671,7 +2677,8 @@ function getBenchmarks() {
     keywords: { poor:20, fair:40, good:60, excellent:80 },
     listening: { poor:30, fair:50, good:65, excellent:80 },
     qratio: { poor:30, fair:50, good:65, excellent:80 },
-    hedging: { poor:30, fair:50, good:65, excellent:80 }
+    hedging: { poor:30, fair:50, good:65, excellent:80 },
+    echo: { poor:30, fair:50, good:65, excellent:85 }
   };
 }
 
@@ -2699,7 +2706,8 @@ function getPriorityRecommendations() {
     { key:'keywords', label:'Keyword Coverage', desc:'Cover more call-center keywords in the conversation' },
     { key:'listening', label:'Active Listening', desc:'Use more affirmations like "I understand" and "I see" to show engagement' },
     { key:'qratio', label:'Question Ratio', desc:'Ask more open-ended questions to engage the customer' },
-    { key:'hedging', label:'Hedging', desc:'Reduce uncertain language like "I think" and "maybe" — be confident' }
+    { key:'hedging', label:'Hedging', desc:'Reduce uncertain language like "I think" and "maybe" — be confident' },
+    { key:'echo', label:'Emotional Echo', desc:'Mirror the customer\'s emotional state — if they\'re upset, acknowledge it before moving on' }
   ];
   var needs = metrics.map(function(m) {
     var b = bm[m.key];
@@ -2926,8 +2934,8 @@ function renderTrendDashboard() {
   var hist = getCallHistory();
   if (hist.length < 2) { el.innerHTML = '<p class="text-muted">Need at least 2 calls in history to show trends</p>'; return; }
 
-  var labels = ['Empathy','Tone','Resolution','Negativity','Balance','Interrupt','Pace','Turn','Keywords'];
-  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords'];
+  var labels = ['Empathy','Tone','Resolution','Negativity','Balance','Interrupt','Pace','Turn','Keywords','Listening','Q Ratio','Hedging','Echo'];
+  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords','listening','qratio','hedging','echo'];
   var avgs = { overall: 0 }; keys.forEach(function(k) { avgs[k] = 0; });
   var allOverall = [];
 
@@ -3008,6 +3016,11 @@ function generateGapAnalysis() {
     }},
     { key:'interrupt', label:'Interruptions', utterances: function(utts) {
       var bad = []; for (var i=1;i<utts.length;i++) { var gap=(utts[i].start||0)-(utts[i-1].end||0); if (utts[i].speaker!==utts[i-1].speaker && gap<0) bad.push(utts[i]); } return bad;
+    }},
+    { key:'echo', label:'Emotional Echo', utterances: function(utts) {
+      var bad = []; for (var i=0;i<utts.length-1;i++) {
+        if (utts[i].speaker==='B' && utts[i+1].speaker==='A' && (utts[i].fuzzyScore||0) < -0.2 && (utts[i+1].fuzzyScore||0) <= 0) bad.push(utts[i+1]);
+      } return bad;
     }}
   ];
   map.forEach(function(m) {
@@ -3220,6 +3233,42 @@ function calcHedging() {
   var maxExpected = Math.ceil(agentUtts.length * 0.15); // more than 15% hedging is bad
   var score = count <= maxExpected ? 100 : Math.max(0, 100 - (count - maxExpected) * 20);
   S.hedgingScore = score;
+}
+
+/* ----- 7. EMOTIONAL ECHO SCORE™ (unique algorithm) ----- */
+function calcEmotionalEcho() {
+  var utts = S.utterances || [];
+  if (!utts || utts.length < 3) { S.echoScore = 75; S.echoDetail = []; return; }
+  var pairs = [];
+  for (var ei = 0; ei < utts.length - 1; ei++) {
+    var cur = utts[ei], nxt = utts[ei + 1];
+    if (!cur || !nxt || cur.speaker === nxt.speaker) continue;
+    var cf = cur.fuzzyScore || 0, nf = nxt.fuzzyScore || 0;
+    // Customer → Agent: agent mirrors customer's emotion
+    if (cur.speaker === 'B' && nxt.speaker === 'A') {
+      var echoed;
+      if (cf < -0.2) echoed = nf > 0;          // customer upset → agent shows warmth
+      else if (cf > 0.2) echoed = nf > 0;       // customer happy → agent matches energy
+      else if (cf > 0.3) echoed = nf > 0.1;     // very positive → agent reciprocates
+      else echoed = nf > -0.15;                 // neutral → agent stays constructive
+      pairs.push({ type: 'echo', customer: cf, agent: nf, good: echoed, utt: cur.text.substring(0, 60) });
+    }
+    // Agent → Customer: agent influences customer's emotion
+    if (cur.speaker === 'A' && nxt.speaker === 'B') {
+      var influenced;
+      if (nf < -0.2) influenced = false;         // customer left upset → bad influence
+      else if (nf > 0.2) influenced = cf > -0.1; // customer positive → agent led well
+      else influenced = true;                    // neutral → fine
+      pairs.push({ type: 'influence', agent: cf, customer: nf, good: influenced, utt: cur.text.substring(0, 60) });
+    }
+  }
+  var good = pairs.filter(function(p) { return p.good; }).length;
+  var total = pairs.length || 1;
+  var raw = (good / total) * 100;
+  // Penalize robotic perfection (>92% suggests staying neutral to avoid engagement)
+  var score = raw > 92 ? Math.round(raw * 0.8) : Math.round(raw);
+  S.echoScore = Math.max(30, Math.min(100, score));
+  S.echoDetail = pairs;
 }
 
 /* ================================================================
