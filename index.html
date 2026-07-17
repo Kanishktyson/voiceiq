@@ -737,8 +737,13 @@ async function runAnalysis() {
     }
     S.transcriptData = td;
     S.utterances = td.utterances || [];
+    updateStep(2, 'running');
+    document.getElementById('sstatus2').textContent = 'Translating to English...';
+    await translateAll();
+    updateStep(2, 'done');
+    document.getElementById('sstatus2').textContent = 'Translated to English';
     S.timing.api = (performance.now() - apiStart) / 1000;
-    updateStep(2, 'done'); updateProgress(37);
+    updateProgress(37);
 
     // Step 3: Sentiment
     updateStep(3, 'running');
@@ -810,11 +815,13 @@ async function runBackendAnalysis() {
     const data = await resp.json();
     S.transcriptData = data;
     S.utterances = data.utterances || [];
-    S.sentiments = (data.utterances || []).map(u => ({
+    await translateAll();
+    S.sentiments = (S.utterances).map(u => ({
       speaker: u.speaker, text: u.text, sentiment: u.sentiment || 'NEUTRAL',
       start: u.start, end: u.end, confidence: u.confidence || 0.8
     }));
     S.negativeMoments = data.negativeMoments || [];
+    await translateAll();
     S.scores = data.scores || { empathy:0,tone:0,resolution:0,negativity:100,overall:0,grade:'N/A' };
 
     updateStep(1, 'done');
@@ -892,6 +899,7 @@ async function runDemoAnalysis() {
     updateProgress((i + 1) * 12.5);
   }
   S.utterances = DEMO_UTTERANCES;
+  await translateAll();
   S.sentiments = DEMO_UTTERANCES.map(u => ({
     speaker: u.speaker, text: u.text, sentiment: u.sentiment,
     start: u.start, end: u.end, confidence: u.confidence
@@ -1517,181 +1525,204 @@ function downloadPDF() {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pw = 210, ph = 297, m = 20, cw = pw - 2 * m;
   let y = m;
+  const clr = { blue: [37,99,235], dark: [30,30,30], gray: [80,80,80], lightGray: [120,130,150],
+    bg: [245,247,250], white: [255,255,255], green: [34,160,80], red: [200,60,60], orange: [200,120,30] };
 
-  function addPg() { doc.addPage(); y = m + 10; }
+  function pg() { doc.addPage(); y = m + 10; }
 
-  function txt(str, sz, clr, bold) {
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.setFontSize(sz || 10);
-    if (clr) doc.setTextColor(clr[0], clr[1], clr[2]);
-    else doc.setTextColor(241, 245, 249);
-    const lines = doc.splitTextToSize(str || '', cw);
-    for (const l of lines) {
-      if (y + 6 > ph - m) addPg();
-      doc.text(l, m, y); y += 6;
-    }
-    y += 1;
+  function text(s, sz, c, st) {
+    doc.setFont('helvetica', st||'normal'); doc.setFontSize(sz||10);
+    doc.setTextColor(c||clr.dark); const l = doc.splitTextToSize(s||'', cw);
+    for (const x of l) { if (y+6 > ph-m) pg(); doc.text(x, m, y); y += 6; } y += 1;
   }
 
-  function hd(str, sz, clr) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(sz || 14);
-    doc.setTextColor(clr ? clr[0] : 37, clr ? clr[1] : 99, clr ? clr[2] : 235);
-    if (y + 8 > ph - m) addPg();
-    doc.text(str, m, y); y += 7;
+  function head(s, sz) {
+    if (y+10 > ph-m) pg();
+    doc.setFillColor(clr.blue[0], clr.blue[1], clr.blue[2]); doc.rect(m, y-3, 3, 12, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(sz||14); doc.setTextColor(clr.dark);
+    doc.text(s, m+6, y+1); y += 10;
   }
 
-  function line() {
-    if (y + 3 > ph - m) addPg();
-    doc.setDrawColor(37, 99, 235); doc.setLineWidth(0.3);
-    doc.line(m, y, pw - m, y); y += 5;
+  // ===== COVER PAGE =====
+  doc.setFillColor(clr.blue[0], clr.blue[1], clr.blue[2]); doc.rect(0,0,pw,55,'F');
+  doc.setFillColor(30,60,180); doc.rect(0,55,pw,3,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(38); doc.setTextColor(clr.white);
+  doc.text('VoiceIQ', m, 33);
+  doc.setFont('helvetica','normal'); doc.setFontSize(14); doc.setTextColor(220,230,255);
+  doc.text('AI-Powered Call Analysis Report', m, 46);
+  y = 75;
+  doc.setFillColor(clr.bg[0],clr.bg[1],clr.bg[2]); doc.rect(m,y-4,cw,110,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(clr.blue);
+  doc.text('REPORT DETAILS', m+5, y+5); y += 12;
+  const dets = [
+    ['Generated', new Date().toLocaleString()], ['Call Duration', S.callData.duration||'N/A'],
+    ['Overall Score', S.scores.overall+'% (Grade '+S.scores.grade+')'],
+    ['Total Utterances', S.callData.totalUtts], ['Negative Moments', S.negativeMoments.length],
+    ['Call Outcome', S.callData.outcome]
+  ];
+  for (const d of dets) {
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(clr.lightGray);
+    doc.text(d[0], m+5, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(clr.dark);
+    doc.text(':  '+d[1], m+35, y); y += 7;
+  }
+  y += 3;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.lightGray);
+  doc.text('This report was generated automatically by VoiceIQ AI analysis engine.', m+5, y);
+
+  // ===== EXECUTIVE SUMMARY =====
+  pg(); head('Executive Summary', 16);
+  text('This report provides a comprehensive AI-driven analysis of the call recording. The conversation was analyzed for speaker identification, sentiment, negative moments, and agent response quality.', 10, clr.gray);
+
+  if (y+4 > ph-m) pg();
+  doc.setDrawColor(clr.blue[0],clr.blue[1],clr.blue[2]); doc.setLineWidth(0.4);
+  doc.line(m,y,pw-m,y); y += 7;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(clr.blue);
+  doc.text('Key Metrics', m, y); y += 6;
+  const metrics = [['Overall Quality',S.scores.overall+'% ('+S.scores.grade+')'],
+    ['Empathy Score',S.scores.empathy+'%'],['Agent Tone Score',S.scores.tone+'%'],
+    ['Complaint Handling',S.scores.negativity+'%'],['Resolution Score',S.scores.resolution+'%']];
+  for (const mm of metrics) {
+    doc.setFillColor(clr.bg[0],clr.bg[1],clr.bg[2]); doc.rect(m,y-2,cw,8,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(clr.gray);
+    doc.text(mm[0], m+4, y+1);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(clr.blue);
+    doc.text(mm[1], m+cw-30, y+1); y += 9;
+  }
+  y += 2;
+
+  doc.setDrawColor(clr.blue[0],clr.blue[1],clr.blue[2]); doc.setLineWidth(0.4);
+  if (y+4 > ph-m) pg(); doc.line(m,y,pw-m,y); y += 7;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(clr.blue);
+  doc.text('Call Statistics', m, y); y += 6;
+  const stats = [['Duration',S.callData.duration],
+    ['Agent Turns',S.callData.agentUtts+' ('+S.callData.agentWords+' words)'],
+    ['Customer Turns',S.callData.custUtts+' ('+S.callData.custWords+' words)'],
+    ['Avg Response Time',S.callData.avgResponseTime+'s'],['Stress Level',S.callData.stress]];
+  for (const s of stats) {
+    doc.setFillColor(clr.bg[0],clr.bg[1],clr.bg[2]); doc.rect(m,y-2,cw,8,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(clr.gray);
+    doc.text(s[0], m+4, y+1);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(clr.blue);
+    doc.text(s[1], m+cw-30, y+1); y += 9;
   }
 
-  // Cover
-  doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
-  doc.setFillColor(37, 99, 235); doc.rect(0, 0, pw, 6, 'F'); doc.rect(0, ph - 6, pw, 6, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(38);
-  doc.setTextColor(37, 99, 235); doc.text('VoiceIQ', m, 80);
-  doc.setFontSize(14); doc.setTextColor(148, 163, 184);
-  doc.text('AI-Powered Call Analysis Report', m, 94);
-  doc.setFontSize(11);
-  y = 115;
-  const cov = [
-    'Report Generated: ' + new Date().toLocaleString(),
-    'Call Duration: ' + (S.callData.duration || 'N/A'),
-    'Overall Score: ' + S.scores.overall + '% (Grade ' + S.scores.grade + ')',
-    'Platform: AssemblyAI + VoiceIQ',
-    '',
-    'This report contains:',
-    '  - Executive Summary with Key Metrics',
-    '  - Full Conversation Transcript',
-    '  - Negative Moments Analysis',
-    '  - Script Suggestions & Coaching',
-    '  - Actionable Recommendations'
-  ];
-  for (const l of cov) { txt(l, 10, [148, 163, 184]); y += 2; }
-
-  // Executive Summary
-  addPg();
-  doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
-  line(); hd('Executive Summary', 20); y -= 2;
-  txt('Call Overview', 12, [37, 99, 235], true);
-  txt('This report provides a comprehensive AI-driven analysis of the call recording. The conversation was analyzed for speaker identification, sentiment, negative moments, and agent response quality. Below are the key findings.', 10);
-  line();
-  txt('Key Metrics', 12, [37, 99, 235], true);
-  const metrics = [
-    'Overall Quality Score: ' + S.scores.overall + '% (' + S.scores.grade + ')',
-    'Empathy Score: ' + S.scores.empathy + '%',
-    'Agent Tone Score: ' + S.scores.tone + '%',
-    'Complaint Handling: ' + S.scores.negativity + '%',
-    'Resolution Score: ' + S.scores.resolution + '%'
-  ];
-  for (const m of metrics) txt('  \u2022 ' + m, 10);
-  line();
-  txt('Call Statistics', 12, [37, 99, 235], true);
-  const stats = [
-    'Duration: ' + S.callData.duration,
-    'Total Utterances: ' + S.callData.totalUtts,
-    'Agent Turns: ' + S.callData.agentUtts + ' (' + S.callData.agentWords + ' words)',
-    'Customer Turns: ' + S.callData.custUtts + ' (' + S.callData.custWords + ' words)',
-    'Negative Moments: ' + S.negativeMoments.length,
-    'Average Response Time: ' + S.callData.avgResponseTime + 's',
-    'Call Outcome: ' + S.callData.outcome,
-    'Stress Level: ' + S.callData.stress
-  ];
-  for (const s of stats) txt('  \u2022 ' + s, 10);
-
-  // Transcript
-  addPg();
-  doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
-  line(); hd('Full Transcript', 18);
+  // ===== TRANSCRIPT =====
+  pg(); head('Full Transcript', 16);
   for (const u of S.utterances) {
-    if (y + 10 > ph - m) addPg();
-    const sp = u.speaker === 'A' ? 'Agent' : 'Customer';
+    if (y+12 > ph-m) pg();
+    const sp = u.speaker==='A'?'Agent':'Customer';
     const tm = fmtDur((u.start||0)/1000);
-    const sent = u.sentiment || 'NEUTRAL';
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.setTextColor(u.speaker === 'A' ? 37 : 34, u.speaker === 'A' ? 99 : 197, u.speaker === 'A' ? 235 : 94);
-    doc.text(sp + ' [' + tm + ']', m, y); y += 5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    const tl = doc.splitTextToSize(u.text, cw - 4);
-    for (const t of tl) { if (y + 4 > ph - m) addPg(); doc.text(t, m + 3, y); y += 4; }
+    const se = u.sentiment||'NEUTRAL';
+    doc.setFillColor(u.speaker==='A'?235:240,u.speaker==='A'?240:235,u.speaker==='A'?255:250);
+    doc.rect(m,y-2,cw,4,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    doc.setTextColor(u.speaker==='A'?37:210,u.speaker==='A'?99:150,u.speaker==='A'?235:50);
+    doc.text(sp, m+2, y+1);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(clr.lightGray);
+    doc.text('['+tm+'] \u00b7 '+se, m+18, y+1); y += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
+    const tl = doc.splitTextToSize(u.text, cw-6);
+    for (const t of tl) { if (y+4 > ph-m) pg(); doc.text(t, m+3, y); y += 4; }
     y += 1;
   }
 
-  // Negative Moments
+  // ===== NEGATIVE MOMENTS =====
   if (S.negativeMoments.length) {
-    addPg(); doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
-    line(); hd('Negative Moments', 18);
-    S.negativeMoments.forEach((m, i) => {
-      if (y + 18 > ph - m) addPg();
-      const col = m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD' ? [34,197,94] : [239,68,68];
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-      doc.setTextColor(col[0], col[1], col[2]);
-      doc.text('#'+(i+1)+' at '+fmtDur((m.customerStart||0)/1000), m, y); y += 6;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-      doc.setTextColor(241, 245, 249); txt('Customer: ' + esc(m.customerText), 8);
-      doc.setTextColor(148, 163, 184); txt('Agent: ' + esc(m.agentText), 8);
-      doc.setTextColor(col[0], col[1], col[2]); txt('Rating: ' + m.responseQuality, 8);
-      y += 2;
+    pg(); head('Negative Moments', 16);
+    S.negativeMoments.forEach((nm, i) => {
+      if (y+18 > ph-m) pg();
+      const good = nm.responseQuality==='EXCELLENT'||nm.responseQuality==='GOOD';
+      doc.setFillColor(good?240:255, good?250:235, good?240:235);
+      doc.rect(m, y, cw, 7, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.setTextColor(good?clr.green[0]:clr.red[0], good?clr.green[1]:clr.red[1], good?clr.green[2]:clr.red[2]);
+      doc.text('#'+(i+1)+'  Incident at '+fmtDur((nm.customerStart||0)/1000), m+3, y+4); y += 9;
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.red);
+      doc.text('Customer:', m+3, y); y += 4;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
+      const cl = doc.splitTextToSize('"'+nm.customerText+'"', cw-10);
+      for (const l of cl) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.blue);
+      doc.text('Agent Response:', m+3, y); y += 4;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
+      const al = doc.splitTextToSize('"'+nm.agentText+'"', cw-10);
+      for (const l of al) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
+      doc.setFillColor(good?230:255, good?245:230, good?230:230);
+      doc.rect(m+3, y-1, 40, 5, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7);
+      doc.setTextColor(good?clr.green[0]:clr.red[0], good?clr.green[1]:clr.red[1], good?clr.green[2]:clr.red[2]);
+      doc.text('Rating: '+nm.responseQuality, m+5, y+1); y += 8;
     });
   }
 
-  // Script Suggestions
-  const poorM = S.negativeMoments.filter(m => m.responseQuality === 'POOR' || m.responseQuality === 'FAILED');
+  // ===== SCRIPT SUGGESTIONS =====
+  const poorM = S.negativeMoments.filter(m => m.responseQuality==='POOR'||m.responseQuality==='FAILED');
   if (poorM.length) {
-    addPg(); doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
-    line(); hd('Script Suggestions & Coaching', 18);
-    poorM.forEach((m, i) => {
-      if (y + 16 > ph - m) addPg();
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-      doc.setTextColor(245, 158, 11); doc.text('Situation #'+(i+1), m, y); y += 6;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-      doc.setTextColor(239, 68, 68); txt('Actual: "' + esc(m.agentText) + '"', 8);
-      doc.setTextColor(34, 197, 94); txt('Suggested: "' + genAlt(m.customerText) + '"', 8);
-      doc.setTextColor(37, 99, 235); txt('Tip: ' + genTip(m), 8);
-      y += 2;
+    pg(); head('Script Suggestions & Coaching', 16);
+    poorM.forEach((nm, i) => {
+      if (y+18 > ph-m) pg();
+      doc.setFillColor(255,248,240); doc.rect(m,y,cw,7,'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.setTextColor(clr.orange[0],clr.orange[1],clr.orange[2]);
+      doc.text('Situation #'+(i+1), m+3, y+4); y += 9;
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.red);
+      doc.text('Actual Response:', m+3, y); y += 4;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
+      const al = doc.splitTextToSize('"'+nm.agentText+'"', cw-10);
+      for (const l of al) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.green);
+      doc.text('Suggested Response:', m+3, y); y += 4;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
+      const sl = doc.splitTextToSize('"'+genAlt(nm.customerText)+'"', cw-10);
+      for (const l of sl) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
+      doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(clr.blue);
+      const tip = doc.splitTextToSize('Tip: '+genTip(nm), cw-10);
+      for (const l of tip) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 4;
     });
   }
 
-  // Recommendations
-  addPg(); doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, ph, 'F');
-  line(); hd('Recommendations', 18);
-  const sections = [
-    { label: 'Areas for Improvement', color: [239, 68, 68] },
-    { label: 'Follow-Up Actions', color: [245, 158, 11] },
-    { label: 'Strengths & Positives', color: [34, 197, 94] }
+  // ===== RECOMMENDATIONS =====
+  pg(); head('Recommendations', 16);
+
+  const recs = [
+    { label:'Areas for Improvement', color:clr.red, items:[
+      'Practice acknowledging customer emotions before jumping to solutions.',
+      'Maintain solution-oriented language throughout the call.',
+      'Work on de-escalation techniques for better resolution rates.']},
+    { label:'Follow-Up Actions', color:clr.orange, items:[
+      'Follow up with customer to ensure full satisfaction.',
+      'Track recurring complaint themes for team training.',
+      'Review empathy and active listening training modules.']},
+    { label:'Strengths & Positives', color:clr.green, items:[
+      'Good engagement with '+S.callData.totalUtts+' utterances exchanged.',
+      'Quick response time of '+S.callData.avgResponseTime+'s.',
+      'Low filler word count shows clear communication.']}
   ];
-  for (const sec of sections) {
-    if (y + 8 > ph - m) addPg();
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-    doc.setTextColor(sec.color[0], sec.color[1], sec.color[2]);
-    doc.text(sec.label, m, y); y += 7;
-  }
-  // Generic recommendations
-  const recTexts = [
-    ['Improve empathy score ('+S.scores.empathy+'%). Practice acknowledging customer emotions first.','Improve tone ('+S.scores.tone+'% positive). Maintain solution-oriented language.','Work on de-escalation techniques for better resolution rates.'].filter(Boolean),
-    ['Follow up with customer to ensure full satisfaction.','Track recurring complaint themes.','Review empathy and active listening training modules.'].filter(Boolean),
-    ['Good engagement with '+S.callData.totalUtts+' utterances exchanged.','Quick response time of '+S.callData.avgResponseTime+'s.','Low filler word count ('+S.callData.fillerWords+') shows clear communication.'].filter(Boolean)
-  ];
-  for (let si = 0; si < 3; si++) {
-    for (const t of recTexts[si]) {
-      if (y + 5 > ph - m) addPg();
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-      doc.setTextColor(241, 245, 249); txt('  \u2022 ' + t, 8);
-    }
-    y += 3;
+  for (const rc of recs) {
+    if (y+10 > ph-m) pg();
+    doc.setFillColor(rc.color[0],rc.color[1],rc.color[2]); doc.rect(m,y-2,4,12,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.setTextColor(rc.color[0],rc.color[1],rc.color[2]);
+    doc.text(rc.label, m+8, y+2); y += 10;
+    for (const item of rc.items) {
+      if (y+5 > ph-m) pg();
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
+      const il = doc.splitTextToSize('\u2022  '+item, cw-12);
+      for (const l of il) { if (y+4 > ph-m) pg(); doc.text(l, m+10, y); y += 4; }
+      y += 1;
+    } y += 3;
   }
 
-  // Page numbers
+  // ===== FOOTER =====
   for (let i = 0; i < doc.internal.getNumberOfPages(); i++) {
-    doc.setPage(i + 1);
-    if (i > 0) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
-      doc.text('VoiceIQ Report \u2014 Page ' + (i + 1), m, ph - 10);
-    }
+    doc.setPage(i+1);
+    doc.setFillColor(clr.blue[0],clr.blue[1],clr.blue[2]); doc.rect(0,ph-8,pw,8,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.setTextColor(220,230,255); doc.text('VoiceIQ AI Call Analysis Report', m, ph-3);
+    doc.text('Page '+(i+1)+' of '+doc.internal.getNumberOfPages(), pw-m-25, ph-3);
   }
 
   doc.save('VoiceIQ_Call_Analysis_Report.pdf');
@@ -1797,7 +1828,33 @@ function resetApp() {
 }
 
 /* ========================= UTILITY ========================= */
-function esc(str) { if (!str) return ''; return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(str) { if (!str) return ''; return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function hasDevanagari(t) { return /[\u0900-\u097F]/.test(t); }
+
+async function translateTxt(text) {
+  if (!text || !hasDevanagari(text)) return text;
+  try {
+    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0,480)) + '&langpair=hi|en');
+    if (!r.ok) return text;
+    const d = await r.json();
+    if (d.responseData && d.responseData.translatedText)
+      return d.responseData.translatedText.replace(/&#\d+;/g,'').trim();
+  } catch(e) { console.warn('Translation failed'); }
+  return text;
+}
+
+async function translateAll() {
+  const all = [];
+  for (const u of S.utterances) {
+    if (hasDevanagari(u.text)) all.push(translateTxt(u.text).then(t => u.text = t));
+  }
+  for (const m of S.negativeMoments) {
+    if (hasDevanagari(m.customerText)) all.push(translateTxt(m.customerText).then(t => m.customerText = t));
+    if (hasDevanagari(m.agentText)) all.push(translateTxt(m.agentText).then(t => m.agentText = t));
+  }
+  await Promise.all(all);
+}
 </script>
 </body>
 </html>
