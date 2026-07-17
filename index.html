@@ -358,6 +358,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="score-val"><div class="num" id="overallScore">0</div><div class="lbl">Grade <span id="overallGrade">-</span></div></div>
 </div>
 </div>
+<div class="card">
+<div class="card-title"><i class="fas fa-chart-line" style="color:var(--orange)"></i> Performance Radar</div>
+<canvas id="radarChart" style="width:100%;max-width:400px;margin:0 auto;display:block"></canvas>
+</div>
 <div class="card" id="progressCards"></div>
 <div class="card">
 <div class="card-title"><i class="fas fa-arrows-spin" style="color:var(--blue)"></i> Customer Journey</div>
@@ -400,6 +404,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card-title"><i class="fas fa-clipboard-list" style="color:var(--blue)"></i> Actionable Recommendations</div>
 <div id="recsContainer"></div>
 </div>
+<div class="card">
+<div class="card-title"><i class="fas fa-arrow-trend-up" style="color:var(--orange)"></i> Priority Improvements</div>
+<div id="recPriorityList"><p style="color:var(--text2);font-size:13px">Analyzing...</p></div>
+</div>
 <div class="nav-arrows">
 <button class="btn btn-secondary" onclick="goToScreen(7)"><i class="fas fa-chevron-left"></i> Previous</button>
 <button class="btn btn-primary" onclick="goToScreen(9)">Next <i class="fas fa-chevron-right"></i></button>
@@ -423,8 +431,14 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="download-grid">
 <button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF Report</button>
 <button class="btn btn-success" onclick="downloadExcel()"><i class="fas fa-file-excel"></i> Excel Report</button>
+<button class="btn btn-outline" onclick="downloadCSV()"><i class="fas fa-file-csv"></i> CSV Export</button>
 <button class="btn btn-outline" onclick="copyTranscript()"><i class="fas fa-copy"></i> Copy Transcript</button>
 </div>
+</div>
+<div class="card" style="text-align:left">
+<div class="card-title"><i class="fas fa-clock-rotate" style="color:var(--purple)"></i> Call History</div>
+<div id="historyPanel"><p style="color:var(--text2);font-size:13px;margin:12px 0">Loading...</p></div>
+<button class="btn btn-secondary btn-sm" onclick="showCallHistoryPanel()" style="margin-top:8px;font-size:12px"><i class="fas fa-rotate"></i> Refresh</button>
 </div>
 <div class="card" style="text-align:center;background:rgba(139,92,246,0.04);border-color:rgba(139,92,246,0.15)">
 <div class="card-title justify-center" style="color:var(--purple)"><i class="fab fa-github"></i> Deploy on GitHub Pages</div>
@@ -583,6 +597,7 @@ function showScreen(n) {
   visitedScreens.add(n);
   updateDots(n);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (n === 9) { showCallHistoryPanel(); }
 }
 
 function updateDots(n) {
@@ -795,6 +810,7 @@ async function runAnalysis() {
     document.getElementById('apiTime').textContent = S.timing.api.toFixed(1);
     document.getElementById('procTime').textContent = S.timing.processing.toFixed(1);
 
+    saveCallHistory();
     setTimeout(() => { showToast('Analysis complete!', 'success'); showScreen(3); }, 600);
 
   } catch (err) {
@@ -1129,43 +1145,99 @@ function evaluateAll() {
 }
 
 function calcScores() {
-  const utts = S.utterances;
-  const moments = S.negativeMoments;
+  var utts = S.utterances;
+  var moments = S.negativeMoments;
   if (!utts.length) {
-    S.scores = { empathy: 50, tone: 50, resolution: 50, negativity: 50, overall: 50, grade: 'C' };
+    S.scores = { empathy:50,tone:50,resolution:50,negativity:50,balance:50,interrupt:50,pace:50,turn:50,keywords:50,overall:50,grade:'C',all:{}};
     return;
   }
-  // Empathy (30%)
-  let ec = 0, et = 0;
-  for (let i = 0; i < utts.length - 1; i++) {
-    if (utts[i].speaker === 'B' && utts[i].sentiment === 'NEGATIVE') {
-      et++;
-      const n = utts[i + 1];
-      if (n && n.speaker === 'A' && (n.sentiment === 'POSITIVE' || n.sentiment === 'NEUTRAL')) ec++;
-    }
+  var ec=0, et=0;
+  for (var i=0;i<utts.length-1;i++) {
+    if (utts[i].speaker==='B' && utts[i].sentiment==='NEGATIVE') { et++;
+      var n=utts[i+1]; if (n&&n.speaker==='A'&&(n.sentiment==='POSITIVE'||n.sentiment==='NEUTRAL')) ec++; }
   }
-  const empathy = et > 0 ? (ec / et) * 100 : 75;
-
-  // Tone (25%)
-  const agentU = utts.filter(u => u.speaker === 'A');
-  const posA = agentU.filter(u => u.sentiment === 'POSITIVE').length;
-  const tone = agentU.length > 0 ? (posA / agentU.length) * 100 : 50;
-
-  // Resolution (25%)
-  const lastCust = [...utts].reverse().find(u => u.speaker === 'B');
-  const resolution = lastCust ? (lastCust.sentiment === 'POSITIVE' ? 100 : lastCust.sentiment === 'NEUTRAL' ? 60 : 25) : 50;
-
-  // Negativity handling (20%)
-  const goodH = moments.filter(m => m.responseQuality === 'EXCELLENT' || m.responseQuality === 'GOOD').length;
-  const negativity = moments.length > 0 ? (goodH / moments.length) * 100 : 100;
-
-  const overall = Math.round(empathy * 0.30 + tone * 0.25 + resolution * 0.25 + negativity * 0.20);
-  const grade = overall > 90 ? 'A' : overall > 80 ? 'B' : overall > 70 ? 'C' : overall > 55 ? 'D' : 'F';
-
-  S.scores = { empathy: Math.round(empathy), tone: Math.round(tone), resolution: Math.round(resolution), negativity: Math.round(negativity), overall, grade };
+  var empathy = et>0 ? (ec/et)*100 : 75;
+  var agentU = utts.filter(function(u){return u.speaker==='A';});
+  var posA = agentU.filter(function(u){return u.sentiment==='POSITIVE';}).length;
+  var tone = agentU.length>0 ? (posA/agentU.length)*100 : 50;
+  var lastCust = utts.slice().reverse().find(function(u){return u.speaker==='B';});
+  var resolution = lastCust ? (lastCust.sentiment==='POSITIVE'?100:lastCust.sentiment==='NEUTRAL'?60:25) : 50;
+  var goodH = moments.filter(function(m){return m.responseQuality==='EXCELLENT'||m.responseQuality==='GOOD';}).length;
+  var negativity = moments.length>0 ? (goodH/moments.length)*100 : 100;
+  var tb = S.talkBalance || {score:100};
+  var balance = tb.score;
+  var intr = S.interruptions || {score:100};
+  var interrupt = intr.score;
+  var paceScore = S.paceScore || 100;
+  var turn = (S.turnAnalysis && S.turnAnalysis.score) ? S.turnAnalysis.score : 100;
+  var kw = S.keywords || {score:100};
+  var keywords = kw.score;
+  var overall = Math.round(
+    empathy*0.15 + tone*0.12 + resolution*0.12 + negativity*0.12 +
+    balance*0.10 + interrupt*0.10 + paceScore*0.10 + turn*0.10 + keywords*0.09
+  );
+  var grade = overall>90?'A':overall>80?'B':overall>70?'C':overall>55?'D':'F';
+  S.scores = {
+    empathy: Math.round(empathy), tone: Math.round(tone), resolution: Math.round(resolution),
+    negativity: Math.round(negativity), balance: Math.round(balance),
+    interrupt: Math.round(interrupt), pace: Math.round(paceScore),
+    turn: Math.round(turn), keywords: Math.round(keywords),
+    overall: overall, grade: grade,
+    all: { empathy,tone,resolution,negativity,balance,interrupt,paceScore,turn,keywords },
+    labels: ['Empathy','Tone','Resolution','Negativity','Balance','Interruptions','Pace','Turn-taking','Keywords']
+  };
 }
 
-/* ===== ADVANCED ALGORITHM: Sentiment Trend ===== */
+function renderRadarChart(canvasId, scores, labels) {
+  var cv = document.getElementById(canvasId);
+  if (!cv) return;
+  var rect = cv.parentElement.getBoundingClientRect();
+  var w = Math.max(rect.width-32, 240);
+  var dpr = window.devicePixelRatio||1;
+  cv.width = w*dpr; cv.height = w*dpr;
+  cv.style.width = w+'px'; cv.style.height = w+'px';
+  var ctx = cv.getContext('2d');
+  var cx = w*dpr/2, cy = w*dpr/2, r = w*dpr*0.35;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0,0,w,w);
+  if (!scores||!scores.length) {
+    ctx.fillStyle='#334155'; ctx.font='14px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('No data', w/2, w/2); return;
+  }
+  var n = scores.length;
+  for (var ri=0;ri<=4;ri++) {
+    var gr = r*ri/4;
+    ctx.beginPath();
+    for (var gi=0;gi<=n;gi++) {
+      var ga = Math.PI*2*gi/n - Math.PI/2;
+      var gx = w/2 + gr*Math.cos(ga), gy = w/2 + gr*Math.sin(ga);
+      gi===0 ? ctx.moveTo(gx,gy) : ctx.lineTo(gx,gy);
+    }
+    ctx.strokeStyle='rgba(148,163,184,0.2)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  ctx.beginPath();
+  var colors = ['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16'];
+  for (var di=0;di<=n;di++) {
+    var idx = di%n;
+    var angle = Math.PI*2*idx/n - Math.PI/2;
+    var val = Math.max(0, Math.min(100, scores[idx]||0)) / 100;
+    var x = w/2 + r*val*Math.cos(angle), y = w/2 + r*val*Math.sin(angle);
+    di===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fillStyle='rgba(37,99,235,0.15)'; ctx.fill();
+  ctx.strokeStyle='#2563eb'; ctx.lineWidth=2; ctx.stroke();
+  for (var di2=0;di2<n;di2++) {
+    var a2 = Math.PI*2*di2/n - Math.PI/2;
+    var v2 = Math.max(0, Math.min(100, scores[di2]||0)) / 100;
+    var dx = w/2 + r*v2*Math.cos(a2), dy = w/2 + r*v2*Math.sin(a2);
+    ctx.beginPath(); ctx.arc(dx,dy,3,0,Math.PI*2);
+    ctx.fillStyle=colors[di2%colors.length]; ctx.fill();
+    var lx = w/2 + (r+18)*Math.cos(a2), ly = w/2 + (r+18)*Math.sin(a2);
+    ctx.font='10px Inter,sans-serif'; ctx.fillStyle='#94a3b8'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText((labels?labels[di2]:'')+' '+scores[di2]+'%', lx, ly);
+  }
+}
 function calcSentimentTrend() {
   var utts = S.utterances;
   if (utts.length < 3) { S.sentimentTrend = { direction: 'STABLE', slope: 0, intervals: [] }; return; }
@@ -1347,6 +1419,7 @@ function renderAll() {
   renderDashboard();
   renderSuggester();
   renderRecommendations();
+  renderPriorityRecs();
 }
 
 /* ========================= RENDER: TRANSCRIPT ========================= */
@@ -1604,6 +1677,12 @@ function renderDashboard() {
   setTimeout(() => {
     document.querySelectorAll('.progress-item .fill').forEach(el => { el.style.width = el.style.getPropertyValue('--w') || el.style.width; });
   }, 100);
+
+  // Radar chart
+  var scr = S.scores;
+  if (scr && scr.all) {
+    renderRadarChart('radarChart', [scr.empathy,scr.tone,scr.resolution,scr.negativity,scr.balance,scr.interrupt,scr.pace,scr.turn,scr.keywords], scr.labels);
+  }
 }
 
 /* ========================= RENDER: SUGGESTER ========================= */
@@ -2256,6 +2335,149 @@ function analyzeTurnTaking() {
   };
 }
 
+/* ===== CALL HISTORY (localStorage) ===== */
+function saveCallHistory() {
+  var hist = JSON.parse(localStorage.getItem('voiceiq_history') || '[]');
+  var entry = {
+    date: new Date().toISOString(),
+    scores: S.scores,
+    callData: S.callData,
+    duration: S.callData ? S.callData.duration : '0:00',
+    overall: S.scores ? S.scores.overall : 0,
+    grade: S.scores ? S.scores.grade : 'C'
+  };
+  hist.unshift(entry);
+  if (hist.length > 20) hist.length = 20;
+  localStorage.setItem('voiceiq_history', JSON.stringify(hist));
+}
+
+function getCallHistory() {
+  return JSON.parse(localStorage.getItem('voiceiq_history') || '[]');
+}
+
+function clearCallHistory() {
+  localStorage.removeItem('voiceiq_history');
+  showCallHistoryPanel();
+}
+
+function showCallHistoryPanel() {
+  var panel = document.getElementById('historyPanel');
+  if (!panel) return;
+  var hist = getCallHistory();
+  if (!hist.length) {
+    panel.innerHTML = '<p style="color:var(--text2);font-size:13px;margin:12px 0">No previous analyses yet.</p>';
+    return;
+  }
+  panel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:var(--text2);font-size:12px">' + hist.length + ' saved call(s)</span><button class="btn btn-outline btn-sm" onclick="clearCallHistory()" style="font-size:11px;padding:4px 10px"><i class="fas fa-trash"></i> Clear</button></div>' +
+    hist.map(function(e, i) {
+      var d = new Date(e.date);
+      var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      var c = e.grade === 'A' ? 'var(--green)' : e.grade === 'B' ? 'var(--blue)' : e.grade === 'C' ? 'var(--orange)' : 'var(--red)';
+      return '<div class="hist-item" onclick="loadHistoryEntry(' + i + ')" style="border-bottom:1px solid rgba(148,163,184,0.1);padding:8px 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +
+        '<div><span style="font-size:13px;font-weight:600">' + ds + '</span><br><span style="font-size:11px;color:var(--text2)">' + e.duration + ' | ' + (e.callData ? (e.callData.agentUtts + e.callData.custUtts) : 0) + ' utts</span></div>' +
+        '<div style="text-align:right"><span style="font-size:16px;font-weight:700;color:' + c + '">' + e.overall + '%</span><br><span style="font-size:11px;color:' + c + '">' + e.grade + '</span></div></div>';
+    }).join('');
+}
+
+function loadHistoryEntry(idx) {
+  var hist = getCallHistory();
+  var entry = hist[idx];
+  if (!entry) return;
+  S.scores = entry.scores;
+  S.callData = entry.callData;
+  renderDashboard();
+  goToScreen(6);
+  showToast('Loaded call from ' + new Date(entry.date).toLocaleString(), 'info');
+}
+
+/* ===== CSV EXPORT ===== */
+function downloadCSV() {
+  var s = S.scores;
+  if (!s) { showToast('No scores to export', 'error'); return; }
+  var rows = [['Metric','Score','Grade','Date'].join(',')];
+  var labels = ['Empathy','Tone','Resolution','Negativity Handling','Talk Balance','Interruptions','Pace','Turn-taking','Keywords'];
+  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords'];
+  var now = new Date().toISOString().split('T')[0];
+  rows.push(['Overall Score', s.overall, s.grade, now].join(','));
+  keys.forEach(function(k, i) { rows.push([labels[i], s[k] || 0, s.grade, now].join(',')); });
+  rows.push('');
+  rows.push('Call Data,,,,');
+  rows.push(['Duration', S.callData ? S.callData.duration : '','',now].join(','));
+  rows.push(['Total Utterances', S.callData ? S.callData.totalUtts : '','',now].join(','));
+  var blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = url; a.download = 'voiceiq_report_' + now + '.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('CSV exported', 'success');
+}
+
+/* ===== BENCHMARK COMPARISON ===== */
+function getBenchmarks() {
+  return {
+    empathy: { poor:30, fair:50, good:70, excellent:85 },
+    tone: { poor:40, fair:55, good:70, excellent:85 },
+    resolution: { poor:25, fair:45, good:65, excellent:80 },
+    negativity: { poor:30, fair:50, good:70, excellent:85 },
+    balance: { poor:40, fair:55, good:70, excellent:85 },
+    interrupt: { poor:30, fair:50, good:70, excellent:85 },
+    pace: { poor:40, fair:55, good:70, excellent:85 },
+    turn: { poor:35, fair:50, good:65, excellent:80 },
+    keywords: { poor:20, fair:40, good:60, excellent:80 }
+  };
+}
+
+function getBenchmarkLabel(val, benchmarks) {
+  if (val >= benchmarks.excellent) return 'Excellent';
+  if (val >= benchmarks.good) return 'Good';
+  if (val >= benchmarks.fair) return 'Fair';
+  return 'Needs Improvement';
+}
+
+/* ===== PRIORITY-RANKED RECOMMENDATIONS ===== */
+function getPriorityRecommendations() {
+  var s = S.scores;
+  if (!s) return [];
+  var bm = getBenchmarks();
+  var metrics = [
+    { key:'empathy', label:'Empathy', desc:'Acknowledge customer feelings before responding' },
+    { key:'tone', label:'Agent Tone', desc:'Use more positive language and avoid defensive phrasing' },
+    { key:'resolution', label:'Resolution', desc:'Focus on resolving the core issue before ending the call' },
+    { key:'negativity', label:'Negativity Handling', desc:'De-escalate complaints with structured responses' },
+    { key:'balance', label:'Talk Balance', desc:'Let the customer speak more — aim for 40:60 agent:customer ratio' },
+    { key:'interrupt', label:'Interruptions', desc:'Wait for customer to finish speaking before responding' },
+    { key:'pace', label:'Speaking Pace', desc:'Slow down — aim for 140-160 words per minute' },
+    { key:'turn', label:'Turn-taking', desc:'Reduce gaps between speaker switches for natural flow' },
+    { key:'keywords', label:'Keyword Coverage', desc:'Cover more call-center keywords in the conversation' }
+  ];
+  var needs = metrics.map(function(m) {
+    var b = bm[m.key];
+    var score = s[m.key] || 0;
+    var gap = Math.max(0, b.good - score);
+    return { key: m.key, label: m.label, desc: m.desc, score: score, gap: gap, priority: gap > 30 ? 'high' : gap > 15 ? 'medium' : 'low' };
+  });
+  needs.sort(function(a, b) { return b.gap - a.gap; });
+  return needs;
+}
+
+function renderPriorityRecs() {
+  var el = document.getElementById('recPriorityList');
+  if (!el) return;
+  var recs = getPriorityRecommendations();
+  if (!recs.length) { el.innerHTML = '<p style="color:var(--text2)">No recommendations available.</p>'; return; }
+  el.innerHTML = recs.map(function(r, i) {
+    var icon = r.priority === 'high' ? 'fa-circle-exclamation' : r.priority === 'medium' ? 'fa-triangle-exclamation' : 'fa-check-circle';
+    var color = r.priority === 'high' ? 'var(--red)' : r.priority === 'medium' ? 'var(--orange)' : 'var(--green)';
+    var badge = r.priority === 'high' ? 'High' : r.priority === 'medium' ? 'Medium' : 'Low';
+    return '<div class="rec-item" style="border-bottom:1px solid rgba(148,163,184,0.1);padding:8px 0">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+      '<i class="fas ' + icon + '" style="color:' + color + ';width:16px"></i>' +
+      '<span style="flex:1;font-size:13px"><strong>' + r.label + '</strong> (' + r.score + '%) — ' + r.desc + '</span>' +
+      '<span class="badge" style="background:' + color + ';color:#fff;font-size:10px;padding:2px 8px;border-radius:10px">' + badge + '</span></div></div>';
+  }).join('');
+}
+
 </script>
 </body>
 </html>
+
