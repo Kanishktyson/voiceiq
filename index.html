@@ -1869,6 +1869,20 @@ function downloadPDF() {
     doc.text(stats[si][1], m+cw-30, y+1); y += 9;
   }
 
+  // ===== RADAR CHART =====
+  try {
+    var radarCanvas = document.getElementById('radarChart');
+    if (radarCanvas) {
+      var scr2 = S.scores;
+      if (scr2 && scr2.all) renderRadarChart('radarChart', [scr2.empathy,scr2.tone,scr2.resolution,scr2.negativity,scr2.balance,scr2.interrupt,scr2.pace,scr2.turn,scr2.keywords], scr2.labels);
+      var chartImg = radarCanvas.toDataURL('image/jpeg', 0.92);
+      if (y + 70 > ph - m) pg();
+      hd('Performance Radar', 16);
+      doc.addImage(chartImg, 'JPEG', m + 20, y, cw - 40, cw - 40);
+      y += cw - 30;
+    }
+  } catch(e) { /* radar embed skipped */ }
+
   // ===== TRANSCRIPT =====
   pg(); hd('Full Transcript', 16);
   for (var ui = 0; ui < S.utterances.length; ui++) {
