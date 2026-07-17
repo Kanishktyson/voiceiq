@@ -230,9 +230,9 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card-title"><i class="fas fa-globe" style="color:var(--purple)"></i> Call Language</div>
 <p style="font-size:13px;color:var(--text2);margin-bottom:10px">Select the language spoken in the call</p>
 <select id="langSelect" style="margin-bottom:0">
-<option value="en">English</option>
+<option value="en" selected>English</option>
 <option value="hi">Hindi</option>
-<option value="auto" selected>Auto-Detect</option>
+<option value="auto">Auto-Detect</option>
 <option value="es">Spanish</option>
 <option value="fr">French</option>
 <option value="de">German</option>
@@ -247,11 +247,6 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <button class="btn btn-primary btn-lg" id="analyzeBtn" style="margin-top:20px;padding:16px 48px;font-size:18px;border-radius:16px" disabled>
 <i class="fas fa-magic"></i> Analyze Call
 </button>
-<p style="margin-top:8px;font-size:12px;color:var(--text2)">
-<i class="fas fa-microphone-alt"></i> Free alternative: 
-<a href="#" onclick="startBrowserSpeech();return false" style="color:var(--cyan);text-decoration:underline">Browser Speech Recognition</a>
- (no API key, short audio)
-</p>
 <p id="analyzeError" style="color:var(--red);font-size:13px;margin-top:8px;display:none"></p>
 <p id="demoHint" style="color:var(--orange);font-size:12px;margin-top:8px;display:none"><i class="fas fa-flask"></i> No API key &mdash; will run in <strong>Demo Mode</strong> with sample data</p>
 </div>
@@ -709,47 +704,6 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
   await runAnalysis();
 });
 
-async function startBrowserSpeech() {
-  if (!hasSpeechRecognition()) { showToast('Speech recognition not supported in this browser. Use Chrome.', 'error'); return; }
-  if (!S.audioFile) { showToast('Please upload an audio file first', 'error'); return; }
-  showScreen(2);
-  resetSteps();
-  S.isDemo = false;
-  S.useBackend = false;
-  var t0 = performance.now();
-  try {
-    updateStep(0, 'running');
-    document.getElementById('sstatus0').textContent = 'Browser speech (free)...';
-    var result = await runBrowserSpeechRec(S.audioFile);
-    S.utterances = result.utterances || [];
-    S.timing.api = (performance.now() - t0) / 1000;
-
-    S.sentiments = S.utterances.map(function(u) { return { speaker: u.speaker, text: u.text, sentiment: 'NEUTRAL', start: u.start, end: u.end, confidence: u.confidence || 0.7 }; });
-    S.negativeMoments = [];
-    evaluateAll();
-    calcScores();
-    calcSentimentTrend();
-    detectInterruptions();
-    calcTalkBalance();
-    extractKeywords();
-    analyzeWordPatterns();
-    analyzeTurnTaking();
-    buildCallData();
-    renderAll();
-    document.getElementById('demoBadge').classList.add('hidden');
-    document.getElementById('timingDisplay').style.display = 'block';
-    document.getElementById('totalTime').textContent = ((performance.now() - t0) / 1000).toFixed(1);
-    document.getElementById('apiTime').textContent = '0';
-    document.getElementById('procTime').textContent = ((performance.now() - t0) / 1000).toFixed(1);
-
-    setTimeout(function() { showToast('Browser speech analysis complete!', 'success'); showScreen(3); }, 500);
-  } catch(e) {
-    console.error(e);
-    showToast('Browser speech error: ' + e.message, 'error');
-    goToScreen(1);
-  }
-}
-
 async function runAnalysis() {
   resetSteps();
   const t0 = performance.now();
@@ -1022,10 +976,11 @@ async function pollTranscription(id) {
 }
 
 async function runWhisperFallback() {
-  var lang = document.getElementById('langSelect')?.value || 'auto';
-  var useTranslate = lang === 'hi' || lang === 'auto';
-  var modelName = useTranslate ? 'Xenova/whisper-tiny' : 'Xenova/whisper-tiny.en';
-  showToast(useTranslate ? 'Downloading Whisper for Hindi\u2192English translation (75MB)...' : 'Downloading Whisper AI model (75MB)...', 'info');
+  var lang = document.getElementById('langSelect')?.value || 'en';
+  var isHindi = lang === 'hi';
+  var modelName = isHindi ? 'Xenova/whisper-tiny' : 'Xenova/whisper-base.en';
+  var sizeLabel = isHindi ? '75MB' : '150MB';
+  showToast('Downloading Whisper ' + modelName.split('/')[1] + ' (' + sizeLabel + ')...', 'info');
   updateStep(1, 'running');
   document.getElementById('sstatus1').textContent = 'Loading Whisper...';
   var pipe;
@@ -1040,7 +995,7 @@ async function runWhisperFallback() {
   } catch(e) { throw new Error('Whisper model failed to load: ' + e.message); }
   updateStep(1, 'done');
   updateStep(2, 'running');
-  document.getElementById('sstatus2').textContent = useTranslate ? 'Translating audio to English...' : 'Transcribing...';
+  document.getElementById('sstatus2').textContent = 'Transcribing audio...';
 
   var audioData;
   if (S.audioBuffer) { audioData = S.audioBuffer; }
@@ -1049,15 +1004,18 @@ async function runWhisperFallback() {
     var arr = await S.audioFile.arrayBuffer();
     audioData = await ctx.decodeAudioData(arr);
   }
-  analyzeAudio(audioData);
+  // Preprocess: noise reduction + normalize for better accuracy
+  var cleaned = preprocessAudio(audioData);
+  analyzeAudio(cleaned || audioData);
   calcPaceScore();
-  S.audioBuffer = audioData;
+  S.audioBuffer = cleaned || audioData;
 
-  var sr2 = 16000, origRate = audioData.sampleRate, chs = audioData.numberOfChannels;
-  var mono = chs > 1 ? new Float32Array(audioData.length) : audioData.getChannelData(0);
+  var srcBuf = S.audioBuffer;
+  var sr2 = 16000, origRate = srcBuf.sampleRate, chs = srcBuf.numberOfChannels;
+  var mono = chs > 1 ? new Float32Array(srcBuf.length) : srcBuf.getChannelData(0);
   if (chs > 1) {
-    var ch0 = audioData.getChannelData(0), ch1 = audioData.getChannelData(1);
-    for (var mi = 0; mi < audioData.length; mi++) mono[mi] = (ch0[mi] + ch1[mi]) / 2;
+    var ch0 = srcBuf.getChannelData(0), ch1 = srcBuf.getChannelData(1);
+    for (var mi = 0; mi < srcBuf.length; mi++) mono[mi] = (ch0[mi] + ch1[mi]) / 2;
   }
   var ratio = sr2 / origRate, newLen = Math.round(mono.length * ratio);
   var resampled = new Float32Array(newLen);
@@ -1066,7 +1024,7 @@ async function runWhisperFallback() {
     resampled[ri] = s + 1 < mono.length ? mono[s] * (1 - f) + mono[s + 1] * f : mono[s];
   }
   var opts = { return_timestamps: true };
-  if (useTranslate) { opts.task = 'translate'; opts.language = 'hi'; }
+  if (isHindi) { opts.task = 'translate'; opts.language = 'hi'; }
   var result = await pipe(resampled, opts);
 
   var utts = [];
@@ -1081,7 +1039,7 @@ async function runWhisperFallback() {
   if (!utts.length && result.text) {
     utts.push({ speaker: 'A', text: result.text, start: 0, end: 60000, sentiment: 'NEUTRAL', confidence: 0.85 });
   }
-  document.getElementById('sstatus2').textContent = useTranslate ? 'Done (Whisper translate)' : 'Done (Whisper)';
+  document.getElementById('sstatus2').textContent = 'Done (Whisper base.en)';
   return { utterances: utts };
 }
 
@@ -2298,56 +2256,6 @@ function analyzeTurnTaking() {
   };
 }
 
-/* ===== FREE TOOL: Browser SpeechRecognition Fallback ===== */
-function hasSpeechRecognition() {
-  return !!(window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition);
-}
-
-async function runBrowserSpeechRec(file) {
-  return new Promise(function(resolve, reject) {
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { reject(new Error('SpeechRecognition not supported')); return; }
-    showToast('Using browser speech recognition (free, no API key needed)', 'info');
-    var ctx2 = new (window.AudioContext || window.webkitAudioContext)();
-    var reader = new FileReader();
-    reader.onload = async function(e) {
-      var buf = await ctx2.decodeAudioData(e.target.result);
-      analyzeAudio(buf);
-      calcPaceScore();
-      var recognizer = new SR();
-      recognizer.lang = document.getElementById('langSelect')?.value || 'en-US';
-      recognizer.continuous = true;
-      recognizer.interimResults = false;
-      var utts2 = [];
-      var lastTime = 0;
-      recognizer.onresult = function(event) {
-        for (var ri = event.resultIndex; ri < event.results.length; ri++) {
-          if (event.results[ri].isFinal) {
-            utts2.push({
-              speaker: utts2.length % 2 === 0 ? 'A' : 'B',
-              text: event.results[ri][0].transcript,
-              start: lastTime,
-              end: lastTime + 3000,
-              sentiment: 'NEUTRAL',
-              confidence: event.results[ri][0].confidence || 0.8
-            });
-            lastTime += 3000;
-          }
-        }
-      };
-      recognizer.onend = function() {
-        if (utts2.length === 0) utts2.push({ speaker: 'A', text: '(No speech detected)', start: 0, end: 30000, sentiment: 'NEUTRAL', confidence: 0.5 });
-        resolve({ utterances: utts2 });
-      };
-      recognizer.onerror = function(e) { reject(new Error('SpeechRecognition error: ' + e.error)); };
-      recognizer.start();
-      // Auto-stop after audio duration + 5s
-      setTimeout(function() { try { recognizer.stop(); } catch(e) {} }, (buf.duration * 1000) + 5000);
-    };
-    reader.onerror = function() { reject(new Error('Failed to read audio file')); };
-    reader.readAsArrayBuffer(file);
-  });
-}
 </script>
 </body>
 </html>
