@@ -191,6 +191,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 </head>
 <body>
 
+<div id="introOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#000;align-items:center;justify-content:center">
+<canvas id="introCanvas" style="width:100%;height:100%"></canvas>
+</div>
+
 <div id="toast" class="toast"></div>
 <div id="demoBadge" class="demo-badge hidden"><i class="fas fa-flask"></i> DEMO MODE</div>
 
@@ -797,12 +801,18 @@ async function runAnalysis() {
 
     await sleep(10); // yield to UI
 
-    // Step 3: Sentiment
+    // Step 3: Sentiment (fuzzy continuous scoring + context window)
     updateStep(3, 'running');
-    S.sentiments = S.utterances.map(u => ({
-      speaker: u.speaker, text: u.text, sentiment: u.sentiment || 'NEUTRAL',
-      start: u.start, end: u.end, confidence: u.confidence || 0
-    }));
+    S.utterances.forEach(function(u) {
+      var result = analyzeUtteranceSentiment(u.text);
+      u.fuzzyScore = result.score;
+      u.sentiment = result.label;
+      u.confidence = Math.abs(result.score);
+    });
+    applySentimentContext();
+    S.sentiments = S.utterances.map(function(u) {
+      return { speaker: u.speaker, text: u.text, sentiment: u.sentiment, start: u.start, end: u.end, confidence: u.confidence, fuzzyScore: u.fuzzyScore };
+    });
     updateStep(3, 'done'); updateProgress(50);
     await sleep(5);
 
@@ -825,7 +835,11 @@ async function runAnalysis() {
     calcScores(); await sleep(2);
     calcSentimentTrend(); await sleep(2);
     detectInterruptions(); await sleep(2);
+    calcInterruptionImpact(); await sleep(2);
     calcTalkBalance(); await sleep(2);
+    calcActiveListening(); await sleep(2);
+    calcQuestionRatio(); await sleep(2);
+    calcHedging(); await sleep(2);
     extractKeywords(); await sleep(2);
     analyzeWordPatterns(); await sleep(2);
     analyzeTurnTaking();
@@ -1224,33 +1238,39 @@ function calcScores() {
   var utts = S.utterances;
   var moments = S.negativeMoments;
   if (!utts.length) {
-    S.scores = { empathy:50,tone:50,resolution:50,negativity:50,balance:50,interrupt:50,pace:50,turn:50,keywords:50,overall:50,grade:'C',all:{}};
+    S.scores = { empathy:50,tone:50,resolution:50,negativity:50,balance:50,interrupt:50,pace:50,turn:50,keywords:50,listening:50,qratio:50,hedging:50,overall:50,grade:'C',all:{}};
     return;
   }
   var ec=0, et=0;
   for (var i=0;i<utts.length-1;i++) {
-    if (utts[i].speaker==='B' && utts[i].sentiment==='NEGATIVE') { et++;
-      var n=utts[i+1]; if (n&&n.speaker==='A'&&(n.sentiment==='POSITIVE'||n.sentiment==='NEUTRAL')) ec++; }
+    if (utts[i].speaker==='B' && (utts[i].sentiment==='NEGATIVE' || (utts[i].fuzzyScore||0) < -0.2)) { et++;
+      var n=utts[i+1]; if (n&&n.speaker==='A'&&(n.sentiment==='POSITIVE'||n.sentiment==='NEUTRAL'||(n.fuzzyScore||0)>0)) ec++; }
   }
   var empathy = et>0 ? (ec/et)*100 : 75;
   var agentU = utts.filter(function(u){return u.speaker==='A';});
-  var posA = agentU.filter(function(u){return u.sentiment==='POSITIVE';}).length;
+  var posA = agentU.filter(function(u){return (u.fuzzyScore||0)>0;}).length;
   var tone = agentU.length>0 ? (posA/agentU.length)*100 : 50;
   var lastCust = utts.slice().reverse().find(function(u){return u.speaker==='B';});
-  var resolution = lastCust ? (lastCust.sentiment==='POSITIVE'?100:lastCust.sentiment==='NEUTRAL'?60:25) : 50;
+  var fs = lastCust ? (lastCust.fuzzyScore||0) : 0;
+  var resolution = lastCust ? (fs>0.3?100:fs>-0.2?60:25) : 50;
   var goodH = moments.filter(function(m){return m.responseQuality==='EXCELLENT'||m.responseQuality==='GOOD';}).length;
   var negativity = moments.length>0 ? (goodH/moments.length)*100 : 100;
   var tb = S.talkBalance || {score:100};
   var balance = tb.score;
   var intr = S.interruptions || {score:100};
-  var interrupt = intr.score;
+  var interruptImpact = S.interruptionImpact || {score:100};
+  var interrupt = Math.round(intr.score * 0.6 + interruptImpact.score * 0.4);
   var paceScore = S.paceScore || 100;
   var turn = (S.turnAnalysis && S.turnAnalysis.score) ? S.turnAnalysis.score : 100;
   var kw = S.keywords || {score:100};
   var keywords = kw.score;
+  var listening = S.activeListeningScore || 50;
+  var qratio = S.questionRatioScore || 75;
+  var hedging = S.hedgingScore || 75;
   var overall = Math.round(
-    empathy*0.15 + tone*0.12 + resolution*0.12 + negativity*0.12 +
-    balance*0.10 + interrupt*0.10 + paceScore*0.10 + turn*0.10 + keywords*0.09
+    empathy*0.13 + tone*0.10 + resolution*0.10 + negativity*0.10 +
+    balance*0.08 + interrupt*0.08 + paceScore*0.08 + turn*0.08 + keywords*0.07 +
+    listening*0.07 + qratio*0.05 + hedging*0.06
   );
   var grade = overall>90?'A':overall>80?'B':overall>70?'C':overall>55?'D':'F';
   S.scores = {
@@ -1258,9 +1278,10 @@ function calcScores() {
     negativity: Math.round(negativity), balance: Math.round(balance),
     interrupt: Math.round(interrupt), pace: Math.round(paceScore),
     turn: Math.round(turn), keywords: Math.round(keywords),
+    listening: Math.round(listening), qratio: Math.round(qratio), hedging: Math.round(hedging),
     overall: overall, grade: grade,
-    all: { empathy,tone,resolution,negativity,balance,interrupt,paceScore,turn,keywords },
-    labels: ['Empathy','Tone','Resolution','Negativity','Balance','Interruptions','Pace','Turn-taking','Keywords']
+    all: { empathy,tone,resolution,negativity,balance,interrupt,paceScore,turn,keywords,listening,qratio,hedging },
+    labels: ['Empathy','Tone','Resolution','Negativity','Balance','Interruptions','Pace','Turn-taking','Keywords','Listening','Q Ratio','Hedging']
   };
 }
 
@@ -1761,7 +1782,7 @@ function renderDashboard() {
   // Radar chart
   var scr = S.scores;
   if (scr && scr.all) {
-    renderRadarChart('radarChart', [scr.empathy,scr.tone,scr.resolution,scr.negativity,scr.balance,scr.interrupt,scr.pace,scr.turn,scr.keywords], scr.labels);
+    renderRadarChart('radarChart', [scr.empathy,scr.tone,scr.resolution,scr.negativity,scr.balance,scr.interrupt,scr.pace,scr.turn,scr.keywords,scr.listening||50,scr.qratio||75,scr.hedging||75], scr.labels);
   }
 }
 
@@ -1954,7 +1975,7 @@ function downloadPDF() {
     var radarCanvas = document.getElementById('radarChart');
     if (radarCanvas) {
       var scr2 = S.scores;
-      if (scr2 && scr2.all) renderRadarChart('radarChart', [scr2.empathy,scr2.tone,scr2.resolution,scr2.negativity,scr2.balance,scr2.interrupt,scr2.pace,scr2.turn,scr2.keywords], scr2.labels);
+      if (scr2 && scr2.all) renderRadarChart('radarChart', [scr2.empathy,scr2.tone,scr2.resolution,scr2.negativity,scr2.balance,scr2.interrupt,scr2.pace,scr2.turn,scr2.keywords,scr2.listening||50,scr2.qratio||75,scr2.hedging||75], scr2.labels);
       var chartImg = radarCanvas.toDataURL('image/jpeg', 0.92);
       if (y + 70 > ph - m) pg();
       hd('Performance Radar', 16);
@@ -2609,8 +2630,8 @@ function downloadCSV() {
   var s = S.scores;
   if (!s) { showToast('No scores to export', 'error'); return; }
   var rows = [['Metric','Score','Grade','Date'].join(',')];
-  var labels = ['Empathy','Tone','Resolution','Negativity Handling','Talk Balance','Interruptions','Pace','Turn-taking','Keywords'];
-  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords'];
+  var labels = ['Empathy','Tone','Resolution','Negativity Handling','Talk Balance','Interruptions','Pace','Turn-taking','Keywords','Active Listening','Question Ratio','Hedging'];
+  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords','listening','qratio','hedging'];
   var now = new Date().toISOString().split('T')[0];
   rows.push(['Overall Score', s.overall, s.grade, now].join(','));
   keys.forEach(function(k, i) { rows.push([labels[i], s[k] || 0, s.grade, now].join(',')); });
@@ -2637,7 +2658,10 @@ function getBenchmarks() {
     interrupt: { poor:30, fair:50, good:70, excellent:85 },
     pace: { poor:40, fair:55, good:70, excellent:85 },
     turn: { poor:35, fair:50, good:65, excellent:80 },
-    keywords: { poor:20, fair:40, good:60, excellent:80 }
+    keywords: { poor:20, fair:40, good:60, excellent:80 },
+    listening: { poor:30, fair:50, good:65, excellent:80 },
+    qratio: { poor:30, fair:50, good:65, excellent:80 },
+    hedging: { poor:30, fair:50, good:65, excellent:80 }
   };
 }
 
@@ -2662,7 +2686,10 @@ function getPriorityRecommendations() {
     { key:'interrupt', label:'Interruptions', desc:'Wait for customer to finish speaking before responding' },
     { key:'pace', label:'Speaking Pace', desc:'Slow down — aim for 140-160 words per minute' },
     { key:'turn', label:'Turn-taking', desc:'Reduce gaps between speaker switches for natural flow' },
-    { key:'keywords', label:'Keyword Coverage', desc:'Cover more call-center keywords in the conversation' }
+    { key:'keywords', label:'Keyword Coverage', desc:'Cover more call-center keywords in the conversation' },
+    { key:'listening', label:'Active Listening', desc:'Use more affirmations like "I understand" and "I see" to show engagement' },
+    { key:'qratio', label:'Question Ratio', desc:'Ask more open-ended questions to engage the customer' },
+    { key:'hedging', label:'Hedging', desc:'Reduce uncertain language like "I think" and "maybe" — be confident' }
   ];
   var needs = metrics.map(function(m) {
     var b = bm[m.key];
@@ -3004,6 +3031,419 @@ function renderGapAnalysis() {
       '</div>';
   }).join('');
 }
+
+/* ================================================================
+   ADVANCED QUALITY ALGORITHMS
+   ================================================================ */
+
+/* ----- 1. FUZZY SENTIMENT LEXICON (continuous -1 to +1) ----- */
+var SENTIMENT_LEXICON = {
+  // Strong positive (+0.8 to +1.0)
+  'excellent':0.95,'outstanding':0.95,'perfect':0.95,'wonderful':0.90,'amazing':0.90,'fantastic':0.90,'brilliant':0.88,'superb':0.88,'delighted':0.85,'thrilled':0.85,'exceptional':0.90,'impressive':0.85,'incredible':0.88,'phenomenal':0.90,'splendid':0.85,'marvelous':0.85,
+  // Positive (+0.4 to +0.7)
+  'great':0.75,'happy':0.70,'pleased':0.65,'satisfied':0.60,'appreciate':0.60,'helpful':0.65,'thanks':0.50,'thank':0.50,'good':0.60,'nice':0.50,'love':0.70,'best':0.65,'better':0.55,'glad':0.60,'fine':0.40,'okay':0.30,'agree':0.50,'correct':0.45,'right':0.40,'sure':0.35,'yes':0.30,'awesome':0.80,'cool':0.50,'welcome':0.40,'excited':0.70,'willing':0.45,'accommodate':0.50,'apologize':0.40,'understand':0.35,'absolutely':0.50,'certainly':0.45,'definitely':0.50,'perfectly':0.70,
+  // Weak positive (+0.1 to +0.3)
+  'maybe':0.10,'possibly':0.10,'hopefully':0.20,'alright':0.25,'fair':0.20,'reasonable':0.30,'acceptable':0.25,'adequate':0.20,'sufficient':0.20,'manage':0.15,
+  // Neutral (0.0)
+  'hello':0,'hi':0,'please':0,'sorry':0.05,'pardon':0,'excuse':0,'wait':0,'one moment':0,'hold on':0,'let me':0,'could':0,'would':0,'should':0,'can':0,'will':0,'may':0,
+  // Weak negative (-0.1 to -0.3)
+  'confused':-0.20,'uncertain':-0.20,'unsure':-0.15,'hesitant':-0.20,'disappointed':-0.30,'unfortunately':-0.25,'concerned':-0.20,'worried':-0.25,'doubt':-0.20,'unclear':-0.15,
+  // Negative (-0.4 to -0.7)
+  'bad':-0.55,'terrible':-0.75,'awful':-0.75,'poor':-0.60,'angry':-0.70,'upset':-0.55,'frustrated':-0.65,'annoyed':-0.55,'problem':-0.45,'issue':-0.40,'wrong':-0.50,'mistake':-0.50,'error':-0.45,'difficult':-0.40,'hard':-0.35,'slow':-0.35,'broken':-0.60,'not working':-0.65,'doesn\'t work':-0.60,'failed':-0.65,'failure':-0.60,'complaint':-0.45,'dissatisfied':-0.60,'unhappy':-0.55,'disappointed':-0.50,'ridiculous':-0.70,'horrible':-0.80,'useless':-0.75,'hate':-0.80,'waste':-0.60,'damage':-0.55,'charge':-0.30,'overcharge':-0.60,'billing':-0.25,'refund':-0.20,'cancel':-0.35,'cancelled':-0.40,
+  // Strong negative (-0.7 to -1.0)
+  'furious':-0.90,'livid':-0.90,'enraged':-0.90,'outraged':-0.85,'unacceptable':-0.80,'intolerable':-0.80,'appalling':-0.85,'disgusting':-0.80,'atrocious':-0.85,'abysmal':-0.85,'deplorable':-0.80,'inexcusable':-0.80,'lawsuit':-0.90,'attorney':-0.80,'lawyer':-0.75,'complaint department':-0.70,'manager':-0.50,'supervisor':-0.45,'escalate':-0.50,
+  // Intensifiers (multipliers)
+  'very':1.3,'extremely':1.5,'incredibly':1.5,'absolutely':1.4,'really':1.2,'so':1.2,'utterly':1.6,'completely':1.3,'totally':1.2,'highly':1.3,
+  // Negators (flip sign)
+  'not':-1,'no':-1,'never':-1,'nobody':-1,'nothing':-1,'neither':-1,'nor':-1,'can\'t':-1,'cannot':-1,'don\'t':-1,'doesn\'t':-1,'didn\'t':-1,'won\'t':-1,'wouldn\'t':-1,'shouldn\'t':-1,'couldn\'t':-1,'isn\'t':-1,'aren\'t':-1,'wasn\'t':-1,'weren\'t':-1,'hasn\'t':-1,'haven\'t':-1,'hadn\'t':-1
+};
+
+function analyzeUtteranceSentiment(text) {
+  if (!text) return { score: 0, label: 'NEUTRAL' };
+  var words = text.toLowerCase().split(/\s+/);
+  var score = 0, count = 0, negate = false, intensify = 1;
+  for (var wi = 0; wi < words.length; wi++) {
+    var w = words[wi].replace(/[^a-z']/g, '');
+    // Check negators
+    if (SENTIMENT_LEXICON[w] === -1) { negate = !negate; continue; }
+    // Check intensifiers
+    if (SENTIMENT_LEXICON[w] > 1) { intensify = SENTIMENT_LEXICON[w]; continue; }
+    // Check sentiment words
+    if (SENTIMENT_LEXICON[w] !== undefined) {
+      var val = SENTIMENT_LEXICON[w] * intensify;
+      if (negate) val = -val;
+      score += val;
+      count++;
+      intensify = 1;
+      negate = false;
+    }
+  }
+  // Multi-word phrases
+  var phrases = [
+    { pattern: /not (happy|pleased|satisfied|good|great)/i, val: -0.5 },
+    { pattern: /(very|extremely) (happy|pleased|satisfied|grateful)/i, val: 0.85 },
+    { pattern: /(very|extremely) (angry|upset|frustrated|annoyed)/i, val: -0.85 },
+    { pattern: /i (would|will) (like|appreciate)/i, val: 0.3 },
+    { pattern: /i (need|want|require)/i, val: 0.1 },
+    { pattern: /appreciate your (help|assistance|patience)/i, val: 0.7 },
+    { pattern: /thank you (for|so)/i, val: 0.65 },
+    { pattern: /i'm sorry/i, val: 0.2 },
+    { pattern: /sorry about/i, val: 0.15 },
+    { pattern: /no problem/i, val: 0.3 },
+    { pattern: /my pleasure/i, val: 0.6 },
+    { pattern: /let me (check|look|see|find|help)/i, val: 0.3 },
+    { pattern: /i understand/i, val: 0.4 },
+    { pattern: /i know how (you feel|frustrating)/i, val: 0.6 },
+    { pattern: /that (must be|sounds) (frustrating|difficult|hard)/i, val: 0.5 }
+  ];
+  for (var pi = 0; pi < phrases.length; pi++) {
+    if (phrases[pi].pattern.test(text)) { score += phrases[pi].val; count++; }
+  }
+  var finalScore = count > 0 ? score / count : 0;
+  finalScore = Math.max(-1, Math.min(1, finalScore));
+  var label = finalScore > 0.15 ? 'POSITIVE' : finalScore < -0.15 ? 'NEGATIVE' : 'NEUTRAL';
+  return { score: Math.round(finalScore * 100) / 100, label: label };
+}
+
+/* ----- 2. SENTIMENT CONTEXT WINDOW (sliding window of 5) ----- */
+function applySentimentContext() {
+  var utts = S.utterances;
+  if (!utts || utts.length < 2) return;
+  var windowSize = 5;
+  for (var wi = 0; wi < utts.length; wi++) {
+    var u = utts[wi];
+    if (u.fuzzyScore === undefined) u.fuzzyScore = 0;
+    // Look at neighbors
+    var start = Math.max(0, wi - Math.floor(windowSize / 2));
+    var end = Math.min(utts.length, wi + Math.ceil(windowSize / 2));
+    var ctxSum = 0, ctxCount = 0;
+    for (var wj = start; wj < end; wj++) {
+      if (wj !== wi && utts[wj].fuzzyScore !== undefined) {
+        ctxSum += (utts[wj].fuzzyScore || 0) * 0.3; // 30% context influence
+        ctxCount++;
+      }
+    }
+    var contextBias = ctxCount > 0 ? ctxSum / ctxCount : 0;
+    var adjusted = (u.fuzzyScore || 0) * 0.7 + contextBias;
+    u.fuzzyScore = Math.max(-1, Math.min(1, adjusted));
+    u.sentiment = adjusted > 0.15 ? 'POSITIVE' : adjusted < -0.15 ? 'NEGATIVE' : 'NEUTRAL';
+    u.confidence = Math.abs(adjusted);
+  }
+}
+
+/* ----- 3. INTERRUPTION IMPACT SCORING ----- */
+function calcInterruptionImpact() {
+  var utts = S.utterances;
+  var intr = S.interruptions || { count: 0 };
+  if (intr.count < 1 || !utts.length) { S.interruptionImpact = { score: 100, positive: 0, negative: 0 }; return; }
+  var posImp = 0, negImp = 0;
+  for (var ii = 1; ii < utts.length; ii++) {
+    var gap = (utts[ii].start || 0) - (utts[ii-1].end || 0);
+    if (utts[ii].speaker !== utts[ii-1].speaker && gap < 0) {
+      // Interruption detected
+      var beforeScore = utts[ii-1].fuzzyScore || 0;
+      var afterIdx = Math.min(ii + 2, utts.length - 1);
+      var afterScore = utts[afterIdx] ? (utts[afterIdx].fuzzyScore || 0) : 0;
+      var delta = afterScore - beforeScore;
+      if (delta >= 0) posImp++;
+      else negImp++;
+    }
+  }
+  var total = posImp + negImp;
+  var score = total > 0 ? Math.round(posImp / total * 100) : 100;
+  S.interruptionImpact = { score: score, positive: posImp, negative: negImp, total: total };
+}
+
+/* ----- 4. ACTIVE LISTENING SCORE ----- */
+function calcActiveListening() {
+  var utts = S.utterances || [];
+  var agentUtts = utts.filter(function(u) { return u.speaker === 'A'; });
+  if (!agentUtts.length) { S.activeListeningScore = 50; return; }
+  var affirmations = ['i see','i understand','i hear you','i get it','right','okay','got it','makes sense','i follow','i\'m with you','sure','absolutely','of course','certainly','i appreciate','that makes sense','good point','i agree','you\'re right','thanks for sharing','thank you for explaining','i know what you mean','i can see why','that\'s understandable','i realize','i can imagine','that must be','i hear what you\'re saying','mm-hmm','uh-huh','yeah','yep','alright','okay then','all right','very well','correct','indeed','precisely','exactly'];
+  var count = 0;
+  for (var ai = 0; ai < agentUtts.length; ai++) {
+    var txt = agentUtts[ai].text.toLowerCase();
+    for (var aj = 0; aj < affirmations.length; aj++) {
+      if (txt.indexOf(affirmations[aj]) >= 0) { count++; break; }
+    }
+  }
+  var ratio = count / agentUtts.length;
+  var score = Math.round(Math.min(100, ratio * 200)); // target ~0.5 affirmations per turn
+  S.activeListeningScore = score;
+}
+
+/* ----- 5. QUESTION RATIO ----- */
+function calcQuestionRatio() {
+  var utts = S.utterances || [];
+  var agentUtts = utts.filter(function(u) { return u.speaker === 'A'; });
+  if (!agentUtts.length) { S.questionRatioScore = 75; return; }
+  var questions = 0;
+  var qWords = ['what','when','where','why','how','who','which','could you','can you','would you','will you','are you','do you','did you','have you','is there','are there','may i','can i'];
+  for (var qi = 0; qi < agentUtts.length; qi++) {
+    var txt = agentUtts[qi].text;
+    if (txt.indexOf('?') >= 0) { questions++; continue; }
+    var tl = txt.toLowerCase();
+    for (var qj = 0; qj < qWords.length; qj++) {
+      if (tl.indexOf(qWords[qj]) === 0 || tl.indexOf(' ' + qWords[qj]) >= 0) { questions++; break; }
+    }
+  }
+  var ratio = questions / agentUtts.length;
+  // Ideal: 20-40% questions (1 in 3 to 1 in 5 utterances)
+  var score = ratio >= 0.15 && ratio <= 0.50 ? 100 : ratio > 0.50 ? Math.round(100 - (ratio - 0.50) * 100) : Math.round(ratio / 0.15 * 60);
+  S.questionRatioScore = Math.max(0, Math.min(100, score));
+}
+
+/* ----- 6. HEDGING DETECTION ----- */
+function calcHedging() {
+  var utts = S.utterances || [];
+  var agentUtts = utts.filter(function(u) { return u.speaker === 'A'; });
+  if (!agentUtts.length) { S.hedgingScore = 75; return; }
+  var hedges = ['i think','i guess','i suppose','maybe','perhaps','possibly','probably','sort of','kind of','a little','a bit','somewhat','almost','basically','essentially','just','like','i mean','you know','i feel like','in my opinion','it seems','might','could be','may be','i\'m not sure','i don\'t know','i\'m not certain','i\'m not positive','not really','not exactly','more or less','pretty much','virtually','practically','roughly','approximately'];
+  var count = 0;
+  for (var hi = 0; hi < agentUtts.length; hi++) {
+    var txt = agentUtts[hi].text.toLowerCase();
+    for (var hj = 0; hj < hedges.length; hj++) {
+      var idx = txt.indexOf(hedges[hj]);
+      if (idx >= 0) { count += (hedges[hj].length > 6 ? 2 : 1); break; }
+    }
+  }
+  var maxExpected = Math.ceil(agentUtts.length * 0.15); // more than 15% hedging is bad
+  var score = count <= maxExpected ? 100 : Math.max(0, 100 - (count - maxExpected) * 20);
+  S.hedgingScore = score;
+}
+
+/* ================================================================
+   EPIC CINEMATIC INTRO ANIMATION
+   ================================================================ */
+function playIntro() {
+  var overlay = document.getElementById('introOverlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  var cv = document.getElementById('introCanvas');
+  if (!cv) return;
+  var W = window.innerWidth, H = window.innerHeight;
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  var ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Audio engine
+  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  function playTone(freq, dur, startTime, type, gainVal) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(gainVal || 0.3, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(startTime); osc.stop(startTime + dur);
+  }
+
+  function playNoise(dur, startTime, freq) {
+    var bufSize = audioCtx.sampleRate * dur;
+    var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var ni = 0; ni < bufSize; ni++) data[ni] = (Math.random() * 2 - 1) * Math.pow(1 - ni / bufSize, 3);
+    var src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    var bp = audioCtx.createBiquadFilter();
+    bp.type = 'lowpass'; bp.frequency.setValueAtTime(freq || 300, startTime);
+    bp.frequency.exponentialRampToValueAtTime(20, startTime + dur);
+    var gn = audioCtx.createGain();
+    gn.gain.setValueAtTime(0.4, startTime);
+    gn.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+    src.connect(bp); bp.connect(gn); gn.connect(audioCtx.destination);
+    src.start(startTime); src.stop(startTime + dur);
+  }
+
+  // Schedule audio
+  var t = audioCtx.currentTime + 0.1;
+  // Heartbeat 0-2s
+  playTone(60, 0.3, t, 'sine', 0.2);
+  playTone(80, 0.3, t + 0.5, 'sine', 0.25);
+  playTone(60, 0.3, t + 1.0, 'sine', 0.2);
+  playTone(80, 0.3, t + 1.5, 'sine', 0.25);
+  // Whoosh 2-4s
+  playNoise(1.5, t + 2.0, 800);
+  // Bass build 3-6s
+  playTone(40, 2, t + 3.5, 'sine', 0.15);
+  playTone(55, 2, t + 4.0, 'sine', 0.12);
+  playTone(35, 2, t + 5.0, 'sine', 0.18);
+  // Whoosh 6-7s
+  playNoise(1.2, t + 6.0, 1200);
+  // BOOM at 8s
+  playNoise(1.5, t + 8.0, 200);
+  playTone(30, 2, t + 8.0, 'sine', 0.4);
+  // Orchestral hit at 10s
+  playTone(440, 0.5, t + 10.0, 'sawtooth', 0.08);
+  playTone(554, 0.5, t + 10.0, 'sawtooth', 0.06);
+  playTone(659, 0.5, t + 10.0, 'sawtooth', 0.06);
+  playTone(880, 0.5, t + 10.0, 'sawtooth', 0.04);
+
+  // Particles
+  var particles = [];
+  var maxP = 200;
+
+  // Animation state
+  var startTime = performance.now();
+  var duration = 12500;
+  var logoSize = 0;
+
+  function draw() {
+    var elapsed = performance.now() - startTime;
+    var progress = Math.min(elapsed / duration, 1);
+
+    // Clear
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Phase 1: Waveform (0-3s)
+    if (progress < 0.24) {
+      var wp = progress / 0.24;
+      ctx.strokeStyle = 'rgba(34,197,94,' + (0.3 + wp * 0.5) + ')';
+      ctx.lineWidth = 2;
+      var wc = 3;
+      for (var wci = 0; wci < wc; wci++) {
+        ctx.beginPath();
+        var wamp = 20 + wp * 60;
+        for (var wx = 0; wx < W; wx += 4) {
+          var wy = H / 2 + Math.sin((wx / W) * 30 + elapsed / 200 + wci * 2) * wamp * (0.5 + Math.sin(elapsed / 300 + wci) * 0.3);
+          wx === 0 ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
+        }
+        ctx.strokeStyle = 'rgba(34,197,94,' + (0.2 + wp * 0.3 - wci * 0.08) + ')';
+        ctx.stroke();
+      }
+    }
+
+    // Phase 2: Text fragments (1.5-5s)
+    if (progress > 0.12 && progress < 0.4) {
+      var tp = (progress - 0.12) / 0.28;
+      var words = ['ANALYZE', 'UNDERSTAND', 'IMPROVE'];
+      var alpha = Math.min(1, tp * 4) * (1 - Math.max(0, (tp - 0.7) / 0.3));
+      for (var tii = 0; tii < words.length; tii++) {
+        var tx = W / 2 + Math.sin(tp * 10 + tii * 2) * (1 - tp) * 300;
+        var ty = H / 3 + tii * 80 - tp * 100;
+        var sz = 40 + Math.sin(tp * 5 + tii) * 10;
+        ctx.font = '800 ' + sz + 'px Poppins,Inter,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(37,99,235,' + alpha + ')';
+        ctx.shadowColor = 'rgba(37,99,235,0.5)'; ctx.shadowBlur = 20;
+        ctx.fillText(words[tii], tx, ty);
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Phase 3: Tunnel (3-7s)
+    if (progress > 0.24 && progress < 0.56) {
+      var tup = (progress - 0.24) / 0.32;
+      var rings = 15;
+      for (var ri = rings; ri >= 0; ri--) {
+        var rp = (ri / rings + tup * 0.5) % 1;
+        var rrad = rp * W * 0.8;
+        var ralpha = (1 - rp) * 0.15;
+        ctx.beginPath();
+        ctx.arc(W / 2, H / 2, rrad, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(34,197,94,' + ralpha + ')';
+        ctx.lineWidth = 2 + rp * 4;
+        ctx.stroke();
+      }
+    }
+
+    // Phase 4: Flash (7.5-8.5s)
+    if (progress > 0.6 && progress < 0.68) {
+      var fp = (progress - 0.6) / 0.08;
+      ctx.fillStyle = 'rgba(255,255,255,' + fp * (1 - fp) * 4 + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Phase 5: Logo slam (8-12s)
+    if (progress > 0.64) {
+      var lp = (progress - 0.64) / 0.36;
+      if (lp < 0.15) {
+        logoSize = 1 + Math.sin(lp / 0.15 * Math.PI) * 0.3;
+      } else {
+        logoSize = 1 + (1 - lp) * 0.02;
+      }
+      var ls = 72 * logoSize;
+      ctx.font = '900 ' + ls + 'px Poppins,Inter,sans-serif';
+      ctx.textAlign = 'center';
+      // Metallic emerald gradient
+      var grad = ctx.createLinearGradient(W / 2 - 100, H / 2 - 40, W / 2 + 100, H / 2 + 40);
+      grad.addColorStop(0, '#166534');
+      grad.addColorStop(0.3, '#22c55e');
+      grad.addColorStop(0.5, '#86efac');
+      grad.addColorStop(0.7, '#22c55e');
+      grad.addColorStop(1, '#166534');
+      ctx.shadowColor = 'rgba(34,197,94,0.6)';
+      ctx.shadowBlur = 30 + Math.sin(elapsed / 300) * 10;
+      ctx.fillStyle = grad;
+      ctx.fillText('VoiceIQ', W / 2, H / 2 + 20);
+      ctx.shadowBlur = 0;
+
+      // Particles explode at logo slam
+      if (lp < 0.2 && particles.length < maxP) {
+        var burst = Math.floor((0.2 - lp) / 0.01);
+        for (var pi = 0; pi < burst && particles.length < maxP; pi++) {
+          var angle = Math.random() * Math.PI * 2;
+          var speed = 200 + Math.random() * 400;
+          particles.push({
+            x: W / 2, y: H / 2, vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed, life: 1, color: ['#22c55e','#2563eb','#86efac','#fff'][Math.floor(Math.random()*4)]
+          });
+        }
+      }
+
+      // Subtitle
+      if (lp > 0.3) {
+        var sa = Math.min(1, (lp - 0.3) / 0.15);
+        ctx.font = '18px Inter,sans-serif';
+        ctx.fillStyle = 'rgba(148,163,184,' + sa + ')';
+        ctx.fillText('The Future of Call Intelligence', W / 2, H / 2 + 65);
+      }
+    }
+
+    // Update & draw particles
+    for (var pi = particles.length - 1; pi >= 0; pi--) {
+      var p = particles[pi];
+      p.x += p.vx * (1 / 60);
+      p.y += p.vy * (1 / 60);
+      p.vy += 200 * (1 / 60); // gravity
+      p.life -= 0.008;
+      if (p.life <= 0) { particles.splice(pi, 1); continue; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2 * p.life, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (progress < 1) requestAnimationFrame(draw);
+    else {
+      // Fade out
+      var fadeStart = performance.now();
+      function fadeOut() {
+        var fElapsed = performance.now() - fadeStart;
+        var fP = fElapsed / 500;
+        ctx.fillStyle = 'rgba(0,0,0,' + fP + ')';
+        ctx.fillRect(0, 0, W, H);
+        if (fP < 1) requestAnimationFrame(fadeOut);
+        else { overlay.style.display = 'none'; audioCtx.close(); }
+      }
+      fadeOut();
+    }
+  }
+
+  draw();
+}
+
+// Auto-play intro on page load
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(playIntro, 200);
+});
 
 </script>
 </body>
