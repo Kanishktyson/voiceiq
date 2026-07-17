@@ -343,6 +343,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card-title"><i class="fas fa-wave-square" style="color:var(--cyan)"></i> Audio Quality</div>
 <div id="audioQualityContent" class="text-center" style="padding:8px;font-size:13px"></div>
 </div>
+<div class="card">
+<div class="card-title"><i class="fas fa-face-smile" style="color:var(--green)"></i> Emotion Timeline</div>
+<div id="emotionTimeline" style="padding:8px"><p class="text-muted">Analyzing...</p></div>
+</div>
 <div class="nav-arrows">
 <button class="btn btn-secondary" onclick="goToScreen(4)"><i class="fas fa-chevron-left"></i> Previous</button>
 <button class="btn btn-primary" onclick="goToScreen(6)">Next <i class="fas fa-chevron-right"></i></button>
@@ -365,6 +369,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card">
 <div class="card-title"><i class="fas fa-chart-line" style="color:var(--orange)"></i> Performance Radar</div>
 <canvas id="radarChart" style="width:100%;max-width:400px;margin:0 auto;display:block"></canvas>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-receipt" style="color:var(--green)"></i> Call Summary</div>
+<div id="callSummary"><p class="text-muted">Analyzing...</p></div>
 </div>
 <div class="card" id="progressCards"></div>
 <div class="card">
@@ -412,6 +420,14 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card-title"><i class="fas fa-arrow-trend-up" style="color:var(--orange)"></i> Priority Improvements</div>
 <div id="recPriorityList"><p style="color:var(--text2);font-size:13px">Analyzing...</p></div>
 </div>
+<div class="card">
+<div class="card-title"><i class="fas fa-shield" style="color:var(--red)"></i> Compliance Flags <span id="complianceBadge"></span></div>
+<div id="complianceFlags"><p style="color:var(--text2);font-size:13px">Analyzing...</p></div>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-magnifying-glass-chart" style="color:var(--purple)"></i> Gap Analysis</div>
+<div id="gapAnalysis"><p style="color:var(--text2);font-size:13px">Analyzing...</p></div>
+</div>
 <div class="nav-arrows">
 <button class="btn btn-secondary" onclick="goToScreen(7)"><i class="fas fa-chevron-left"></i> Previous</button>
 <button class="btn btn-primary" onclick="goToScreen(9)">Next <i class="fas fa-chevron-right"></i></button>
@@ -443,6 +459,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card-title"><i class="fas fa-clock-rotate" style="color:var(--purple)"></i> Call History</div>
 <div id="historyPanel"><p style="color:var(--text2);font-size:13px;margin:12px 0">Loading...</p></div>
 <button class="btn btn-secondary btn-sm" onclick="var v=document.getElementById('histSearch');showCallHistoryPanel(v?v.value:'')" style="margin-top:8px;font-size:12px"><i class="fas fa-rotate"></i> Refresh</button>
+</div>
+<div class="card" style="text-align:left">
+<div class="card-title"><i class="fas fa-chart-scatter" style="color:var(--orange)"></i> Multi-Call Trends</div>
+<div id="trendDashboard"><p class="text-muted">Analyzing...</p></div>
 </div>
 <div class="card" style="text-align:center;background:rgba(139,92,246,0.04);border-color:rgba(139,92,246,0.15)">
 <div class="card-title justify-center" style="color:var(--purple)"><i class="fab fa-github"></i> Deploy on GitHub Pages</div>
@@ -601,7 +621,7 @@ function showScreen(n) {
   visitedScreens.add(n);
   updateDots(n);
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (n === 9) { showCallHistoryPanel(); }
+  if (n === 9) { showCallHistoryPanel(); renderTrendDashboard(); }
 }
 
 function updateDots(n) {
@@ -817,10 +837,26 @@ async function runAnalysis() {
     renderAudioQuality();
     await sleep(5);
 
+    // New features: topic, summary, compliance, percentile, gaps
+    classifyCallTopic();
+    generateCallSummary();
+    detectComplianceFlags();
+    calcBenchmarkPercentile();
+    generateGapAnalysis();
+    await sleep(5);
+
     // Step 7: Report
     updateStep(7, 'running');
     buildCallData();
     renderAll();
+    renderCallSummary();
+    renderComplianceFlags();
+    renderEmotionTimeline();
+    renderGapAnalysis();
+    var cf = S.complianceFlags || [];
+    var ch = cf.filter(function(f) { return f.severity === 'high'; }).length;
+    var badge = document.getElementById('complianceBadge');
+    if (badge) badge.innerHTML = cf.length ? '<span class="badge" style="background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle">' + ch + ' high</span>' : '<span class="badge" style="background:var(--green);color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle">Clear</span>';
     updateStep(7, 'done'); updateProgress(100);
 
     S.timing.total = (performance.now() - t0) / 1000;
@@ -1460,6 +1496,10 @@ function renderAll() {
   renderSuggester();
   renderRecommendations();
   renderPriorityRecs();
+  renderCallSummary();
+  renderComplianceFlags();
+  renderEmotionTimeline();
+  renderGapAnalysis();
 }
 
 /* ========================= RENDER: TRANSCRIPT ========================= */
@@ -2400,7 +2440,9 @@ function saveCallHistory() {
     callData: S.callData,
     duration: S.callData ? S.callData.duration : '0:00',
     overall: S.scores ? S.scores.overall : 0,
-    grade: S.scores ? S.scores.grade : 'C'
+    grade: S.scores ? S.scores.grade : 'C',
+    topic: S.callTopic ? S.callTopic.label : 'General',
+    percentile: S.percentile ? S.percentile.label : ''
   };
   hist.unshift(entry);
   if (hist.length > 20) hist.length = 20;
@@ -2646,6 +2688,320 @@ function renderPriorityRecs() {
       '<i class="fas ' + icon + '" style="color:' + color + ';width:16px"></i>' +
       '<span style="flex:1;font-size:13px"><strong>' + r.label + '</strong> (' + r.score + '%) — ' + r.desc + '</span>' +
       '<span class="badge" style="background:' + color + ';color:#fff;font-size:10px;padding:2px 8px;border-radius:10px">' + badge + '</span></div></div>';
+  }).join('');
+}
+
+/* ===== COMPLIANCE FLAGGING ===== */
+function detectComplianceFlags() {
+  var flags = [];
+  var risky = [
+    { pattern: /\bgua(rant|rentee?)\b/i, label: 'Unauthorized guarantee', severity: 'high', tip: 'Never guarantee outcomes. Use "I\'ll do my best to..."' },
+    { pattern: /\bno problem\b/i, label: 'Dismissive language', severity: 'medium', tip: 'Use "Absolutely" or "Certainly" instead of "no problem"' },
+    { pattern: /\bcan'?t (do|help|assist)\b/i, label: 'Negative framing', severity: 'high', tip: 'Reframe as what you CAN do, not what you can\'t' },
+    { pattern: /\b(calm down|relax|chill)\b/i, label: 'Condescending tone', severity: 'high', tip: 'Use "I understand this is frustrating" instead' },
+    { pattern: /\bI don'?t know\b/i, label: 'Uncertainty', severity: 'medium', tip: 'Say "Let me find out for you" instead of "I don\'t know"' },
+    { pattern: /\bthat'?s (not|against) (policy|our policy)\b/i, label: 'Policy wall', severity: 'medium', tip: 'Explain WHY the policy exists, don\'t just state it' },
+    { pattern: /\byou need to\b/i, label: 'Demanding tone', severity: 'low', tip: 'Replace with "Could you please..."' },
+    { pattern: /\bI (already )?(said|told you)\b/i, label: 'Frustration with customer', severity: 'high', tip: 'Never express frustration. Repeat info patiently.' },
+    { pattern: /\bsorry,? (but|however)\b/i, label: 'Non-apology', severity: 'medium', tip: 'Apologize without qualification: "I\'m sorry about that"' },
+    { pattern: /\bhonestly\b|\bto be honest\b/i, label: 'Dishonesty implication', severity: 'low', tip: 'Remove "honestly" — it implies you\'re not always honest' },
+    { pattern: /\b(transfer|escalate) (you|this)\b/i, label: 'Cold transfer', severity: 'medium', tip: 'Explain why transfer helps before doing it' },
+    { pattern: /\bI (agree|disagree)\b/i, label: 'Personal opinion', severity: 'low', tip: 'Focus on facts, not personal agreement/disagreement' },
+    { pattern: /\b(per my|as I said|like I said)\b/i, label: 'Defensive referral', severity: 'medium', tip: 'Just repeat the info without "as I said"' },
+    { pattern: /\bunfortunately\b/i, label: 'Negative opener', severity: 'low', tip: 'Lead with the solution, not the problem' },
+    { pattern: /\bthat (doesn'?t |don'?t )?(make sense|sound right)\b/i, label: 'Invalidating customer', severity: 'high', tip: 'Say "Let me clarify" instead of invalidating' }
+  ];
+  var utts = S.utterances || [];
+  for (var fi = 0; fi < utts.length; fi++) {
+    var u = utts[fi];
+    if (u.speaker !== 'A') continue;
+    for (var rj = 0; rj < risky.length; rj++) {
+      var r = risky[rj];
+      if (r.pattern.test(u.text)) {
+        flags.push({ utterance: u, pattern: r.label, severity: r.severity, tip: r.tip, text: u.text });
+      }
+    }
+  }
+  S.complianceFlags = flags;
+  return flags;
+}
+
+function renderComplianceFlags() {
+  var el = document.getElementById('complianceFlags');
+  if (!el) return;
+  var flags = S.complianceFlags || [];
+  if (!flags.length) {
+    el.innerHTML = '<p style="color:var(--green);font-size:13px"><i class="fas fa-check-circle"></i> No compliance issues detected</p>';
+    return;
+  }
+  var high = flags.filter(function(f) { return f.severity === 'high'; }).length;
+  el.innerHTML = '<div style="display:flex;gap:8px;margin-bottom:8px"><span class="badge" style="background:var(--red);color:#fff;padding:2px 10px;border-radius:10px;font-size:11px">' + high + ' High</span><span class="badge" style="background:var(--orange);color:#fff;padding:2px 10px;border-radius:10px;font-size:11px">' + (flags.length - high) + ' Medium/Low</span></div>' +
+    flags.map(function(f, i) {
+      var c = f.severity === 'high' ? 'var(--red)' : f.severity === 'medium' ? 'var(--orange)' : 'var(--blue)';
+      var tm = f.utterance ? fmtDur((f.utterance.start || 0) / 1000) : '';
+      return '<div class="rec-item" style="border-bottom:1px solid rgba(148,163,184,0.08);padding:6px 0">' +
+        '<div style="display:flex;align-items:flex-start;gap:6px;font-size:12px">' +
+        '<i class="fas fa-flag" style="color:' + c + ';margin-top:2px"></i>' +
+        '<div style="flex:1"><strong style="color:' + c + '">' + f.pattern + '</strong>' +
+        (tm ? ' <span style="color:var(--text2)">at ' + tm + '</span>' : '') +
+        '<br><span style="color:var(--text2)">"' + esc(f.text.substring(0, 80)) + (f.text.length > 80 ? '...' : '') + '"</span>' +
+        '<br><span style="color:var(--blue);font-size:11px"><i class="fas fa-lightbulb"></i> ' + f.tip + '</span></div></div></div>';
+    }).join('');
+}
+
+/* ===== CALL TOPIC AUTO-TAGGING ===== */
+function classifyCallTopic() {
+  var text = (S.utterances || []).map(function(u) { return u.text; }).join(' ').toLowerCase();
+  var topics = [
+    { id: 'billing', label: 'Billing & Payment', keywords: ['bill','charge','payment','invoice','refund','overcharge','fee','credit','debit','paid','transaction','receipt','statement'] },
+    { id: 'cancel', label: 'Cancellation & Returns', keywords: ['cancel','return','refund','exchange','return policy','cancel order','return item','reverse','discontinue'] },
+    { id: 'tech', label: 'Technical Support', keywords: ['error','bug','crash','not working','install','update','download','login','password','reset','configuration','setup','troubleshoot','version','compatible'] },
+    { id: 'account', label: 'Account Management', keywords: ['account','login','password','reset','profile','register','sign up','subscription','plan','upgrade','downgrade'] },
+    { id: 'shipping', label: 'Shipping & Delivery', keywords: ['shipping','delivery','track','order status','dispatch','courier','arrived','late','missing','damaged','address'] },
+    { id: 'complaint', label: 'General Complaint', keywords: ['complaint','unhappy','dissatisfied','frustrated','angry','terrible','horrible','worst','ridiculous','unacceptable'] },
+    { id: 'info', label: 'General Inquiry', keywords: ['question','information','tell me','how to','what is','when does','can you','i need help','looking for'] },
+    { id: 'support', label: 'Customer Support', keywords: ['help','support','issue','problem','assist','stuck','difficulty','trouble','not able','unable'] }
+  ];
+  var scores = topics.map(function(t) {
+    var count = 0;
+    for (var ki = 0; ki < t.keywords.length; ki++) {
+      if (text.indexOf(t.keywords[ki]) >= 0) count++;
+    }
+    return { id: t.id, label: t.label, score: count };
+  });
+  scores.sort(function(a, b) { return b.score - a.score; });
+  var top = scores[0];
+  S.callTopic = top && top.score > 0 ? { id: top.id, label: top.label, confidence: Math.min(100, Math.round(top.score / 3 * 100)), all: scores.filter(function(s) { return s.score > 0; }) } : { id: 'general', label: 'General Call', confidence: 100, all: [] };
+  return S.callTopic;
+}
+
+/* ===== AUTO-CALL SUMMARY ===== */
+function generateCallSummary() {
+  var utts = S.utterances || [];
+  if (!utts.length) { S.callSummary = 'No transcript available.'; return; }
+  var custLines = utts.filter(function(u) { return u.speaker === 'B'; }).map(function(u) { return u.text; });
+  var agentLines = utts.filter(function(u) { return u.speaker === 'A'; }).map(function(u) { return u.text; });
+  var allText = utts.map(function(u) { return u.text; }).join(' ');
+
+  // Issue extraction
+  var issuePatterns = [
+    /\b(?:issue|problem|trouble|error|mistake|wrong)\s+(?:is|with|regarding|about|in)\s+(.+?)(?:\.|,|and|so|but)/i,
+    /\b(?:need|want|would like|trying to)\s+(.+?)(?:\.|,|because|and|so)/i,
+    /\b(?:why (?:is|are|did|does|can't))\s+(.+?)(?:\?|\.|,)/i,
+    /\b(?:can't|cannot|couldn't)\s+(.+?)(?:\.|,|and|so)/i,
+    /\b(?:not working|broken|doesn't work|isn't working)\s*(.*?)(?:\.|,)/i,
+    /\b(?:charged|charge|billed|bill)(?:\s+(?:me|us|my))?\s+(.+?)(?:\.|,|and|so)/i
+  ];
+  var issue = '';
+  for (var ii = 0; ii < custLines.length && !issue; ii++) {
+    for (var ip = 0; ip < issuePatterns.length; ip++) {
+      var m = custLines[ii].match(issuePatterns[ip]);
+      if (m) { issue = m[0].substring(0, 100); break; }
+    }
+  }
+  if (!issue && custLines.length) issue = custLines[0].substring(0, 100);
+
+  // Action extraction
+  var actionWords = ['issued','processed','sent','created','updated','resolved','fixed','refunded','replaced','scheduled','escalated','transferred','provided','explained','confirmed','verified','helped','assisted','completed','solved'];
+  var action = '';
+  for (var ai = 0; ai < agentLines.length && !action; ai++) {
+    for (var aw = 0; aw < actionWords.length; aw++) {
+      if (new RegExp('\\b' + actionWords[aw] + '\\b', 'i').test(agentLines[ai])) {
+        action = agentLines[ai].substring(0, 120);
+        break;
+      }
+    }
+  }
+  if (!action && agentLines.length) action = agentLines[agentLines.length - 1].substring(0, 120);
+
+  // Outcome
+  var lastCust = custLines.length ? custLines[custLines.length - 1] : '';
+  var posWords = ['thank','great','appreciate','helpful','perfect','excellent','goodbye','thanks','solved','fixed','happy'];
+  var negWords = ['still','again','unbelievable','useless','terrible','waste','frustrated','escalate','manager','supervisor','complaint'];
+  var outcome = 'Neutral';
+  for (var pwi = 0; pwi < posWords.length; pwi++) {
+    if (lastCust.toLowerCase().indexOf(posWords[pwi]) >= 0) { outcome = 'Positive Resolution'; break; }
+  }
+  for (var nwi = 0; nwi < negWords.length; nwi++) {
+    if (lastCust.toLowerCase().indexOf(negWords[nwi]) >= 0) { outcome = 'Unresolved / Escalated'; break; }
+  }
+
+  S.callSummary = { issue: issue || 'Unable to determine', action: action || 'General support provided', outcome: outcome };
+  return S.callSummary;
+}
+
+function renderCallSummary() {
+  var el = document.getElementById('callSummary');
+  if (!el) return;
+  var s = S.callSummary || generateCallSummary();
+  if (!s || typeof s === 'string') { el.innerHTML = '<p class="text-muted">' + (s || 'No data') + '</p>'; return; }
+  var oc = s.outcome === 'Positive Resolution' ? 'var(--green)' : s.outcome === 'Unresolved / Escalated' ? 'var(--red)' : 'var(--orange)';
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+    '<div class="summary-box blue"><div class="big" style="font-size:12px;font-weight:400;line-height:1.4;color:var(--text)">' + esc(s.issue) + '</div><div class="sml">Issue</div></div>' +
+    '<div class="summary-box green"><div class="big" style="font-size:12px;font-weight:400;line-height:1.4;color:var(--text)">' + esc(s.action) + '</div><div class="sml">Action Taken</div></div>' +
+    '</div>' +
+    '<div style="text-align:center;margin-top:8px"><span style="font-size:14px;font-weight:600;color:' + oc + '"><i class="fas fa-' + (s.outcome === 'Positive Resolution' ? 'check-circle' : s.outcome === 'Unresolved / Escalated' ? 'exclamation-triangle' : 'minus-circle') + '"></i> ' + s.outcome + '</span></div>';
+}
+
+/* ===== EMOTION TIMELINE (Agent vs Customer side-by-side) ===== */
+function renderEmotionTimeline() {
+  var el = document.getElementById('emotionTimeline');
+  if (!el) return;
+  var utts = S.utterances || [];
+  if (utts.length < 2) { el.innerHTML = '<p class="text-muted">Not enough data</p>'; return; }
+
+  var agentBars = [], custBars = [];
+  for (var ei = 0; ei < utts.length; ei++) {
+    var u = utts[ei];
+    var se = u.sentiment || 'NEUTRAL';
+    var c = se === 'POSITIVE' ? '#22c55e' : se === 'NEGATIVE' ? '#ef4444' : '#f59e0b';
+    if (u.speaker === 'A') agentBars.push({ color: c, text: u.text, idx: ei });
+    else custBars.push({ color: c, text: u.text, idx: ei });
+  }
+
+  var barW = Math.max(4, Math.min(12, Math.floor(300 / Math.max(agentBars.length, custBars.length, 1))));
+
+  function makeRow(bars, label) {
+    var html = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+    html += '<span style="font-size:10px;width:55px;color:var(--text2);text-align:right;flex-shrink:0">' + label + '</span>';
+    html += '<div style="display:flex;gap:2px;flex:1;min-height:20px;align-items:center">';
+    for (var bi = 0; bi < bars.length; bi++) {
+      html += '<div style="width:' + barW + 'px;height:' + (barW + 6) + 'px;background:' + bars[bi].color + ';border-radius:2px;opacity:0.8" title="' + esc(bars[bi].text.substring(0, 50)) + '"></div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  el.innerHTML =
+    '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;display:flex;gap:16px">' +
+    '<span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;vertical-align:middle;margin-right:3px"></span> Positive</span>' +
+    '<span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:3px"></span> Neutral</span>' +
+    '<span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:3px"></span> Negative</span></div>' +
+    makeRow(agentBars, 'Agent') +
+    makeRow(custBars, 'Customer');
+}
+
+/* ===== MULTI-CALL TREND DASHBOARD ===== */
+function renderTrendDashboard() {
+  var el = document.getElementById('trendDashboard');
+  if (!el) return;
+  var hist = getCallHistory();
+  if (hist.length < 2) { el.innerHTML = '<p class="text-muted">Need at least 2 calls in history to show trends</p>'; return; }
+
+  var labels = ['Empathy','Tone','Resolution','Negativity','Balance','Interrupt','Pace','Turn','Keywords'];
+  var keys = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords'];
+  var avgs = { overall: 0 }; keys.forEach(function(k) { avgs[k] = 0; });
+  var allOverall = [];
+
+  hist.forEach(function(e) {
+    var s = e.scores || {};
+    allOverall.push(s.overall || 0);
+    avgs.overall += s.overall || 0;
+    keys.forEach(function(k) { avgs[k] += s[k] || 0; });
+  });
+  var n = hist.length;
+  keys.forEach(function(k) { avgs[k] = Math.round(avgs[k] / n); });
+  avgs.overall = Math.round(avgs.overall / n);
+  allOverall.sort(function(a, b) { return a - b; });
+
+  // Grade distribution
+  var grades = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+  hist.forEach(function(e) { var g = (e.grade || 'C').toUpperCase(); if (grades[g] !== undefined) grades[g]++; });
+
+  // Topic distribution if available
+  var topics = {};
+  hist.forEach(function(e) { var t = e.topic || 'General'; topics[t] = (topics[t] || 0) + 1; });
+  var topicHtml = Object.keys(topics).sort(function(a, b) { return topics[b] - topics[a]; }).map(function(t) {
+    return '<span class="badge" style="background:var(--bg2);color:var(--text2);padding:2px 8px;border-radius:10px;font-size:10px">' + t + ' (' + topics[t] + ')</span>';
+  }).join(' ');
+
+  // Best / worst call
+  var best = Math.max.apply(null, allOverall);
+  var worst = Math.min.apply(null, allOverall);
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px">' +
+    '<div class="summary-box blue"><div class="big">' + n + '</div><div class="sml">Analyzed Calls</div></div>' +
+    '<div class="summary-box blue"><div class="big">' + avgs.overall + '%</div><div class="sml">Avg Score</div></div>' +
+    '<div class="summary-box green"><div class="big">' + best + '%</div><div class="sml">Best Call</div></div>' +
+    '<div class="summary-box red"><div class="big">' + worst + '%</div><div class="sml">Worst Call</div></div>' +
+    '</div>' +
+    '<div style="margin-bottom:6px;font-size:11px;color:var(--text2)">Grade Distribution: ' +
+    ['A','B','C','D','F'].map(function(g) {
+      var c = g === 'A' ? 'var(--green)' : g === 'B' ? 'var(--blue)' : g === 'C' ? 'var(--orange)' : g === 'D' ? 'var(--red)' : 'var(--red)';
+      return '<span style="margin-right:8px"><span style="font-weight:600;color:' + c + '">' + g + '</span>: ' + (grades[g] || 0) + '</span>';
+    }).join('') + '</div>' +
+    (topicHtml ? '<div style="margin-bottom:6px;font-size:11px;color:var(--text2)">Topics: ' + topicHtml + '</div>' : '') +
+    '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">Metric Averages:</div>' +
+    '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">' +
+    labels.map(function(l, i) {
+      var c = avgs[keys[i]] > 75 ? 'var(--green)' : avgs[keys[i]] > 55 ? 'var(--orange)' : 'var(--red)';
+      return '<div class="kpi-card" style="padding:6px"><div class="kpi-num" style="font-size:14px;color:' + c + '">' + avgs[keys[i]] + '%</div><div class="kpi-lbl" style="font-size:9px">' + l + '</div></div>';
+    }).join('') + '</div>';
+}
+
+/* ===== BENCHMARK PERCENTILE ===== */
+function calcBenchmarkPercentile() {
+  var hist = getCallHistory();
+  var cur = S.scores ? S.scores.overall : 0;
+  if (hist.length < 2 || !cur) { S.percentile = { pct: 50, label: 'N/A', n: hist.length }; return; }
+  var all = hist.map(function(e) { return e.overall || 0; });
+  all.sort(function(a, b) { return a - b; });
+  var below = 0;
+  for (var bi = 0; bi < all.length; bi++) { if (all[bi] <= cur) below++; }
+  var pct = Math.round((below / all.length) * 100);
+  var label = pct >= 90 ? 'Top 10%' : pct >= 75 ? 'Top 25%' : pct >= 50 ? 'Above Average' : pct >= 25 ? 'Below Average' : 'Bottom 25%';
+  S.percentile = { pct: pct, label: label, n: all.length };
+  return S.percentile;
+}
+
+/* ===== GAP ANALYSIS ===== */
+function generateGapAnalysis() {
+  var s = S.scores;
+  if (!s) return;
+  var gaps = [];
+  var bm = getBenchmarks();
+  var map = [
+    { key:'empathy', label:'Empathy', utterances: function(utts) {
+      var bad = []; for (var i=0;i<utts.length-1;i++) { if (utts[i].speaker==='B' && utts[i].sentiment==='NEGATIVE' && utts[i+1].speaker==='A' && utts[i+1].sentiment!=='POSITIVE') bad.push(utts[i+1]); } return bad;
+    }},
+    { key:'tone', label:'Agent Tone', utterances: function(utts) {
+      return utts.filter(function(u) { return u.speaker==='A' && u.sentiment!=='POSITIVE'; });
+    }},
+    { key:'interrupt', label:'Interruptions', utterances: function(utts) {
+      var bad = []; for (var i=1;i<utts.length;i++) { var gap=(utts[i].start||0)-(utts[i-1].end||0); if (utts[i].speaker!==utts[i-1].speaker && gap<0) bad.push(utts[i]); } return bad;
+    }}
+  ];
+  map.forEach(function(m) {
+    var score = s[m.key] || 0;
+    var b = bm[m.key];
+    if (score < b.good) {
+      var badUtts = m.utterances(S.utterances || []);
+      gaps.push({
+        key: m.key, label: m.label, score: score, gap: b.good - score,
+        count: badUtts.length, examples: badUtts.slice(0, 3).map(function(u) { return u.text; })
+      });
+    }
+  });
+  gaps.sort(function(a, b) { return b.gap - a.gap; });
+  S.gapAnalysis = gaps;
+}
+
+function renderGapAnalysis() {
+  var el = document.getElementById('gapAnalysis');
+  if (!el) return;
+  var gaps = S.gapAnalysis || [];
+  if (!gaps.length) { el.innerHTML = '<p style="color:var(--green);font-size:13px"><i class="fas fa-check-circle"></i> All metrics are at or above benchmark</p>'; return; }
+  el.innerHTML = gaps.map(function(g) {
+    var c = g.gap > 25 ? 'var(--red)' : g.gap > 10 ? 'var(--orange)' : 'var(--blue)';
+    return '<div style="border-bottom:1px solid rgba(148,163,184,0.08);padding:6px 0">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:13px;font-weight:600;color:' + c + '">' + g.label + '</span>' +
+      '<span style="font-size:12px;color:' + c + '">' + g.score + '% (-' + g.gap + ')</span></div>' +
+      (g.count > 0 ? '<span style="font-size:11px;color:var(--text2)">' + g.count + ' problematic utterance(s)' : '') +
+      (g.examples.length ? '<div style="margin-top:2px;font-size:11px;color:var(--text2);font-style:italic">"' + esc(g.examples[0].substring(0, 80)) + '"</div>' : '') +
+      '</div>';
   }).join('');
 }
 
