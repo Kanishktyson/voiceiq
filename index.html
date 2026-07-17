@@ -38,10 +38,10 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 @keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes iconPulse{0%,100%{transform:scale(1);opacity:0.9}50%{transform:scale(1.08);opacity:1}}
 @keyframes cardEntrance{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-.container{max-width:1000px;margin:0 auto;padding:8px}
+.container{max-width:1200px;margin:0 auto;padding:16px 24px}
 
 /* ===== GLASS CARD SYSTEM with 3D hover ===== */
-.card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:14px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;animation:cardEntrance .4s cubic-bezier(0.22,1,0.36,1) both;perspective:800px;position:relative;overflow:hidden}
+.card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;animation:cardEntrance .4s cubic-bezier(0.22,1,0.36,1) both;perspective:800px;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),transparent);opacity:0.6;transition:opacity .3s}
 .card:hover::before{opacity:1}
 .card:hover{transform:translateY(-3px) scale(1.005);box-shadow:0 16px 48px rgba(0,0,0,0.5),var(--glow),0 0 60px rgba(124,58,237,0.08)}
@@ -257,7 +257,8 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 .mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
 .flex{display:flex}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}
 @media(max-width:768px){
-  .container{padding:4px}
+  .container{padding:12px 16px}
+  .card{padding:18px}
   .chat-bubble{max-width:92%}
   .download-grid .btn{min-width:140px;font-size:12px;padding:12px 18px}
   .score-ring{width:140px;height:140px}
@@ -266,12 +267,26 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
   .summary-box .big{font-size:20px}
   .btn-lg{padding:14px 32px;font-size:16px}
   .nav-arrows .btn{max-width:none}
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:480px){
+  .container{padding:8px 12px}
+  .card{padding:14px}
   .step-label{font-size:12px}
   .step-status{font-size:10px}
-  .card{padding:14px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media print{
+  body{background:#fff!important}
+  .screen{display:block!important;opacity:1!important;transform:none!important;padding:0!important;min-height:auto!important}
+  .card{border:1px solid #ddd!important;box-shadow:none!important;backdrop-filter:none!important;break-inside:avoid;padding:16px!important}
+  .nav-bar,.nav-dots,.nav-arrows,.btn,.upload-zone,.audio-preview,#demoBadge,#toast{display:none!important}
+  *{color:#000!important;-webkit-text-fill-color:#000!important}
+  .glow-text{-webkit-text-fill-color:#333!important}
+  .card-title{-webkit-text-fill-color:#000!important}
+  .score-ring .score-val .num{-webkit-text-fill-color:#7c3aed!important;color:#7c3aed!important}
+  .gradient-bg{background:#fff!important}
+  .gradient-bg::before{display:none!important}
+  @page{margin:12mm}
 }
 </style>
 </head>
@@ -548,7 +563,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div class="card" style="text-align:center">
 <div class="card-title justify-center"><i class="fas fa-download" style="color:var(--blue)"></i> Export Reports</div>
 <div class="download-grid">
-<button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF Report</button>
+<button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF Report (Print)</button>
 <button class="btn btn-success" onclick="downloadExcel()"><i class="fas fa-file-excel"></i> Excel Report</button>
 <button class="btn btn-outline" onclick="downloadCSV()"><i class="fas fa-file-csv"></i> CSV Export</button>
 <button class="btn btn-outline" onclick="copyTranscript()"><i class="fas fa-copy"></i> Copy Transcript</button>
@@ -1969,295 +1984,14 @@ function renderRecommendations() {
 
 /* ========================= PDF GENERATION ========================= */
 function downloadPDF() {
-  try {
-  var { jsPDF } = window.jspdf;
-  var doc = new jsPDF('p', 'mm', 'a4');
-  var pw = 210, ph = 297, m = 20, cw = pw - 2 * m;
-  var y = m;
-
-  function pg() { doc.addPage(); y = m + 10; }
-
-  function tc(r,g,b) { doc.setTextColor(r,g,b); }
-  function fc(r,g,b) { doc.setFillColor(r,g,b); }
-  function dc(r,g,b) { doc.setDrawColor(r,g,b); }
-
-  function txt(str, sz, r, g, b, st) {
-    doc.setFont('helvetica', st || 'normal');
-    doc.setFontSize(sz || 10);
-    tc(r||30, g||30, b||30);
-    var lines = doc.splitTextToSize(str || '', cw);
-    for (var i = 0; i < lines.length; i++) {
-      if (y + 6 > ph - m) pg();
-      doc.text(lines[i], m, y); y += 6;
-    }
-    y += 1;
-  }
-
-  function hd(str, sz, r, g, b) {
-    if (y + 10 > ph - m) pg();
-    fc(37, 99, 235); doc.rect(m, y - 3, 3, 12, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(sz || 14);
-    tc(r||30, g||30, b||30);
-    doc.text(str, m + 6, y + 1); y += 10;
-  }
-
-  function ln() {
-    if (y + 4 > ph - m) pg();
-    dc(37, 99, 235); doc.setLineWidth(0.4);
-    doc.line(m, y, pw - m, y); y += 7;
-  }
-
-  // ===== COVER PAGE =====
-  fc(37, 99, 235); doc.rect(0, 0, pw, 55, 'F');
-  fc(30, 60, 180); doc.rect(0, 55, pw, 3, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(38); tc(255,255,255);
-  doc.text('VoiceIQ', m, 33);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(14); tc(220,230,255);
-  doc.text('AI-Powered Call Analysis Report', m, 46);
-  y = 75;
-  fc(245,247,250); doc.rect(m, y-4, cw, 110, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(37,99,235);
-  doc.text('REPORT DETAILS', m+5, y+5); y += 12;
-  var dets = [
-    ['Generated', new Date().toLocaleString()],
-    ['Call Duration', S.callData.duration || 'N/A'],
-    ['Overall Score', S.scores.overall + '% (Grade ' + S.scores.grade + ')'],
-    ['Total Utterances', S.callData.totalUtts],
-    ['Negative Moments', S.negativeMoments.length],
-    ['Call Outcome', S.callData.outcome]
-  ];
-  for (var di = 0; di < dets.length; di++) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(120,130,150);
-    doc.text(dets[di][0], m+5, y);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); tc(30,30,30);
-    doc.text(':  ' + dets[di][1], m+35, y); y += 7;
-  }
-  y += 3;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(120,130,150);
-  doc.text('This report was generated automatically by VoiceIQ AI analysis engine.', m+5, y);
-
-  // ===== EXECUTIVE SUMMARY =====
-  pg(); hd('Executive Summary', 16);
-  txt('This report provides a comprehensive AI-driven analysis of the call recording. The conversation was analyzed for speaker identification, sentiment, negative moments, and agent response quality.', 10, 80, 80, 80);
-
-  ln();
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(37,99,235);
-  doc.text('Key Metrics', m, y); y += 6;
-  var metrics = [
-    ['Overall Quality', S.scores.overall + '% (' + S.scores.grade + ')'],
-    ['Empathy Score', S.scores.empathy + '%'],
-    ['Agent Tone Score', S.scores.tone + '%'],
-    ['Complaint Handling', S.scores.negativity + '%'],
-    ['Resolution Score', S.scores.resolution + '%']
-  ];
-  for (var mi = 0; mi < metrics.length; mi++) {
-    fc(245,247,250); doc.rect(m, y-2, cw, 8, 'F');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); tc(60,60,60);
-    doc.text(metrics[mi][0], m+4, y+1);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(37,99,235);
-    doc.text(metrics[mi][1], m+cw-30, y+1); y += 9;
-  }
-  y += 2;
-  ln();
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(37,99,235);
-  doc.text('Call Statistics', m, y); y += 6;
-  var stats = [
-    ['Duration', S.callData.duration],
-    ['Agent Turns', S.callData.agentUtts + ' (' + S.callData.agentWords + ' words)'],
-    ['Customer Turns', S.callData.custUtts + ' (' + S.callData.custWords + ' words)'],
-    ['Avg Response Time', S.callData.avgResponseTime + 's'],
-    ['Stress Level', S.callData.stress]
-  ];
-  for (var si = 0; si < stats.length; si++) {
-    fc(245,247,250); doc.rect(m, y-2, cw, 8, 'F');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); tc(60,60,60);
-    doc.text(stats[si][0], m+4, y+1);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(37,99,235);
-    doc.text(stats[si][1], m+cw-30, y+1); y += 9;
-  }
-
-  // ===== RADAR CHART =====
-  try {
-    var radarCanvas = document.getElementById('radarChart');
-    if (radarCanvas) {
-      var scr2 = S.scores;
-      if (scr2 && scr2.all) renderRadarChart('radarChart', [scr2.empathy,scr2.tone,scr2.resolution,scr2.negativity,scr2.balance,scr2.interrupt,scr2.pace,scr2.turn,scr2.keywords,scr2.listening||50,scr2.qratio||75,scr2.hedging||75,scr2.echo||75], scr2.labels);
-      var chartImg = radarCanvas.toDataURL('image/jpeg', 0.92);
-      if (y + 70 > ph - m) pg();
-      hd('Performance Radar', 16);
-      doc.addImage(chartImg, 'JPEG', m + 20, y, cw - 40, cw - 40);
-      y += cw - 30;
-    }
-  } catch(e) { /* radar embed skipped */ }
-
-  // ===== TRANSCRIPT =====
-  pg(); hd('Full Transcript', 16);
-  for (var ui = 0; ui < S.utterances.length; ui++) {
-    var u = S.utterances[ui];
-    if (y + 12 > ph - m) pg();
-    var sp = u.speaker === 'A' ? 'Agent' : 'Customer';
-    var tm = fmtDur((u.start || 0) / 1000);
-    var se = u.sentiment || 'NEUTRAL';
-    fc(u.speaker==='A'?235:240, u.speaker==='A'?240:235, u.speaker==='A'?255:250);
-    doc.rect(m, y-2, cw, 4, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-    tc(u.speaker==='A'?37:210, u.speaker==='A'?99:150, u.speaker==='A'?235:50);
-    doc.text(sp, m+2, y+1);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); tc(120,130,150);
-    doc.text('[' + tm + '] \u00b7 ' + se, m+18, y+1); y += 5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
-    var tl = doc.splitTextToSize(u.text, cw - 6);
-    for (var ti = 0; ti < tl.length; ti++) {
-      if (y + 4 > ph - m) pg();
-      doc.text(tl[ti], m+3, y); y += 4;
-    }
-    y += 1;
-  }
-
-  // ===== NEGATIVE MOMENTS =====
-  if (S.negativeMoments.length) {
-    pg(); hd('Negative Moments', 16);
-    for (var ni = 0; ni < S.negativeMoments.length; ni++) {
-      var nm = S.negativeMoments[ni];
-      if (y + 18 > ph - m) pg();
-      var good = nm.responseQuality === 'EXCELLENT' || nm.responseQuality === 'GOOD';
-      fc(good?240:255, good?250:235, good?240:235);
-      doc.rect(m, y, cw, 7, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-      tc(good?34:200, good?160:60, good?80:60);
-      doc.text('#' + (ni+1) + '  Incident at ' + fmtDur((nm.customerStart||0)/1000), m+3, y+4); y += 9;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(200,60,60);
-      doc.text('Customer:', m+3, y); y += 4;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
-      var cl = doc.splitTextToSize('"' + nm.customerText + '"', cw - 10);
-      for (var cli = 0; cli < cl.length; cli++) {
-        if (y + 4 > ph - m) pg();
-        doc.text(cl[cli], m+6, y); y += 4;
-      }
-      y += 2;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(37,99,235);
-      doc.text('Agent Response:', m+3, y); y += 4;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
-      var al = doc.splitTextToSize('"' + nm.agentText + '"', cw - 10);
-      for (var ali = 0; ali < al.length; ali++) {
-        if (y + 4 > ph - m) pg();
-        doc.text(al[ali], m+6, y); y += 4;
-      }
-      y += 2;
-      fc(good?230:255, good?245:230, good?230:230);
-      doc.rect(m+3, y-1, 40, 5, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-      tc(good?34:200, good?160:60, good?80:60);
-      doc.text('Rating: ' + nm.responseQuality, m+5, y+1); y += 8;
-    }
-  }
-
-  // ===== SCRIPT SUGGESTIONS =====
-  var poorM = [];
-  for (var pi = 0; pi < S.negativeMoments.length; pi++) {
-    if (S.negativeMoments[pi].responseQuality === 'POOR' || S.negativeMoments[pi].responseQuality === 'FAILED')
-      poorM.push(S.negativeMoments[pi]);
-  }
-  if (poorM.length) {
-    pg(); hd('Script Suggestions & Coaching', 16);
-    for (var pj = 0; pj < poorM.length; pj++) {
-      var pnm = poorM[pj];
-      if (y + 18 > ph - m) pg();
-      fc(255,248,240); doc.rect(m, y, cw, 7, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(200,120,30);
-      doc.text('Situation #' + (pj+1), m+3, y+4); y += 9;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(200,60,60);
-      doc.text('Actual Response:', m+3, y); y += 4;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
-      var sal = doc.splitTextToSize('"' + pnm.agentText + '"', cw - 10);
-      for (var sali = 0; sali < sal.length; sali++) {
-        if (y + 4 > ph - m) pg();
-        doc.text(sal[sali], m+6, y); y += 4;
-      }
-      y += 2;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(34,160,80);
-      doc.text('Suggested Response:', m+3, y); y += 4;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
-      var ssl = doc.splitTextToSize('"' + genAlt(pnm.customerText) + '"', cw - 10);
-      for (var ssi = 0; ssi < ssl.length; ssi++) {
-        if (y + 4 > ph - m) pg();
-        doc.text(ssl[ssi], m+6, y); y += 4;
-      }
-      y += 2;
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); tc(37,99,235);
-      var tipL = doc.splitTextToSize('Tip: ' + genTip(pnm), cw - 10);
-      for (var tli = 0; tli < tipL.length; tli++) {
-        if (y + 4 > ph - m) pg();
-        doc.text(tipL[tli], m+6, y); y += 4;
-      }
-      y += 4;
-    }
-  }
-
-  // ===== RECOMMENDATIONS =====
-  pg(); hd('Recommendations', 16);
-  var recs = [
-    { label: 'Areas for Improvement', r: 200, g: 60, b: 60, items: [
-      'Practice acknowledging customer emotions before jumping to solutions.',
-      'Maintain solution-oriented language throughout the call.',
-      'Work on de-escalation techniques for better resolution rates.']},
-    { label: 'Follow-Up Actions', r: 200, g: 120, b: 30, items: [
-      'Follow up with customer to ensure full satisfaction.',
-      'Track recurring complaint themes for team training.',
-      'Review empathy and active listening training modules.']},
-    { label: 'Strengths & Positives', r: 34, g: 160, b: 80, items: [
-      'Good engagement with ' + S.callData.totalUtts + ' utterances exchanged.',
-      'Quick response time of ' + S.callData.avgResponseTime + 's.',
-      'Low filler word count shows clear communication.']}
-  ];
-  for (var ri = 0; ri < recs.length; ri++) {
-    var rc = recs[ri];
-    if (y + 10 > ph - m) pg();
-    fc(rc.r, rc.g, rc.b); doc.rect(m, y-2, 4, 12, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(rc.r, rc.g, rc.b);
-    doc.text(rc.label, m+8, y+2); y += 10;
-    for (var rj = 0; rj < rc.items.length; rj++) {
-      if (y + 5 > ph - m) pg();
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
-      var il = doc.splitTextToSize('\u2022  ' + rc.items[rj], cw - 12);
-      for (var ili = 0; ili < il.length; ili++) {
-        if (y + 4 > ph - m) pg();
-        doc.text(il[ili], m+10, y); y += 4;
-      }
-      y += 1;
-    }
-    y += 3;
-  }
-
-  // ===== FOOTER =====
-  var totalPages = doc.internal.getNumberOfPages();
-  for (var fi = 0; fi < totalPages; fi++) {
-    doc.setPage(fi + 1);
-    fc(37, 99, 235); doc.rect(0, ph-8, pw, 8, 'F');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); tc(220,230,255);
-    doc.text('VoiceIQ AI Call Analysis Report', m, ph-3);
-    doc.text('Page ' + (fi+1) + ' of ' + totalPages, pw-m-25, ph-3);
-  }
-
-  var blob = doc.output('blob');
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'VoiceIQ_Call_Analysis_Report.pdf';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  showToast('PDF report downloaded!', 'success');
-  } catch(e) {
-    console.error('PDF error:', e);
-    showToast('PDF error: ' + e.message, 'error');
-  }
+  if (!S.scores) { showToast('Analyze a call first', 'error'); return; }
+  window.print();
 }
 
 /* ========================= EXCEL ========================= */
 function downloadExcel() {
+  if (!S.scores) { showToast('Analyze a call first', 'error'); return; }
+  try {
   const wb = XLSX.utils.book_new();
   // Summary
   const s1 = XLSX.utils.aoa_to_sheet([
@@ -2321,6 +2055,7 @@ function downloadExcel() {
 
   XLSX.writeFile(wb, 'VoiceIQ_Call_Analysis_Report.xlsx');
   showToast('Excel report downloaded!', 'success');
+  } catch(e) { showToast('Excel error: ' + e.message, 'error'); }
 }
 
 /* ========================= COPY ========================= */
