@@ -1521,212 +1521,270 @@ function renderRecommendations() {
 
 /* ========================= PDF GENERATION ========================= */
 function downloadPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('p', 'mm', 'a4');
-  const pw = 210, ph = 297, m = 20, cw = pw - 2 * m;
-  let y = m;
-  const clr = { blue: [37,99,235], dark: [30,30,30], gray: [80,80,80], lightGray: [120,130,150],
-    bg: [245,247,250], white: [255,255,255], green: [34,160,80], red: [200,60,60], orange: [200,120,30] };
+  try {
+  var { jsPDF } = window.jspdf;
+  var doc = new jsPDF('p', 'mm', 'a4');
+  var pw = 210, ph = 297, m = 20, cw = pw - 2 * m;
+  var y = m;
 
   function pg() { doc.addPage(); y = m + 10; }
 
-  function text(s, sz, c, st) {
-    doc.setFont('helvetica', st||'normal'); doc.setFontSize(sz||10);
-    doc.setTextColor(c||clr.dark); const l = doc.splitTextToSize(s||'', cw);
-    for (const x of l) { if (y+6 > ph-m) pg(); doc.text(x, m, y); y += 6; } y += 1;
+  function tc(r,g,b) { doc.setTextColor(r,g,b); }
+  function fc(r,g,b) { doc.setFillColor(r,g,b); }
+  function dc(r,g,b) { doc.setDrawColor(r,g,b); }
+
+  function txt(str, sz, r, g, b, st) {
+    doc.setFont('helvetica', st || 'normal');
+    doc.setFontSize(sz || 10);
+    tc(r||30, g||30, b||30);
+    var lines = doc.splitTextToSize(str || '', cw);
+    for (var i = 0; i < lines.length; i++) {
+      if (y + 6 > ph - m) pg();
+      doc.text(lines[i], m, y); y += 6;
+    }
+    y += 1;
   }
 
-  function head(s, sz) {
-    if (y+10 > ph-m) pg();
-    doc.setFillColor(clr.blue[0], clr.blue[1], clr.blue[2]); doc.rect(m, y-3, 3, 12, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(sz||14); doc.setTextColor(clr.dark);
-    doc.text(s, m+6, y+1); y += 10;
+  function hd(str, sz, r, g, b) {
+    if (y + 10 > ph - m) pg();
+    fc(37, 99, 235); doc.rect(m, y - 3, 3, 12, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(sz || 14);
+    tc(r||30, g||30, b||30);
+    doc.text(str, m + 6, y + 1); y += 10;
+  }
+
+  function ln() {
+    if (y + 4 > ph - m) pg();
+    dc(37, 99, 235); doc.setLineWidth(0.4);
+    doc.line(m, y, pw - m, y); y += 7;
   }
 
   // ===== COVER PAGE =====
-  doc.setFillColor(clr.blue[0], clr.blue[1], clr.blue[2]); doc.rect(0,0,pw,55,'F');
-  doc.setFillColor(30,60,180); doc.rect(0,55,pw,3,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(38); doc.setTextColor(clr.white);
+  fc(37, 99, 235); doc.rect(0, 0, pw, 55, 'F');
+  fc(30, 60, 180); doc.rect(0, 55, pw, 3, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(38); tc(255,255,255);
   doc.text('VoiceIQ', m, 33);
-  doc.setFont('helvetica','normal'); doc.setFontSize(14); doc.setTextColor(220,230,255);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(14); tc(220,230,255);
   doc.text('AI-Powered Call Analysis Report', m, 46);
   y = 75;
-  doc.setFillColor(clr.bg[0],clr.bg[1],clr.bg[2]); doc.rect(m,y-4,cw,110,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(clr.blue);
+  fc(245,247,250); doc.rect(m, y-4, cw, 110, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(37,99,235);
   doc.text('REPORT DETAILS', m+5, y+5); y += 12;
-  const dets = [
-    ['Generated', new Date().toLocaleString()], ['Call Duration', S.callData.duration||'N/A'],
-    ['Overall Score', S.scores.overall+'% (Grade '+S.scores.grade+')'],
-    ['Total Utterances', S.callData.totalUtts], ['Negative Moments', S.negativeMoments.length],
+  var dets = [
+    ['Generated', new Date().toLocaleString()],
+    ['Call Duration', S.callData.duration || 'N/A'],
+    ['Overall Score', S.scores.overall + '% (Grade ' + S.scores.grade + ')'],
+    ['Total Utterances', S.callData.totalUtts],
+    ['Negative Moments', S.negativeMoments.length],
     ['Call Outcome', S.callData.outcome]
   ];
-  for (const d of dets) {
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(clr.lightGray);
-    doc.text(d[0], m+5, y);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(clr.dark);
-    doc.text(':  '+d[1], m+35, y); y += 7;
+  for (var di = 0; di < dets.length; di++) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(120,130,150);
+    doc.text(dets[di][0], m+5, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); tc(30,30,30);
+    doc.text(':  ' + dets[di][1], m+35, y); y += 7;
   }
   y += 3;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.lightGray);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(120,130,150);
   doc.text('This report was generated automatically by VoiceIQ AI analysis engine.', m+5, y);
 
   // ===== EXECUTIVE SUMMARY =====
-  pg(); head('Executive Summary', 16);
-  text('This report provides a comprehensive AI-driven analysis of the call recording. The conversation was analyzed for speaker identification, sentiment, negative moments, and agent response quality.', 10, clr.gray);
+  pg(); hd('Executive Summary', 16);
+  txt('This report provides a comprehensive AI-driven analysis of the call recording. The conversation was analyzed for speaker identification, sentiment, negative moments, and agent response quality.', 10, 80, 80, 80);
 
-  if (y+4 > ph-m) pg();
-  doc.setDrawColor(clr.blue[0],clr.blue[1],clr.blue[2]); doc.setLineWidth(0.4);
-  doc.line(m,y,pw-m,y); y += 7;
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(clr.blue);
+  ln();
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(37,99,235);
   doc.text('Key Metrics', m, y); y += 6;
-  const metrics = [['Overall Quality',S.scores.overall+'% ('+S.scores.grade+')'],
-    ['Empathy Score',S.scores.empathy+'%'],['Agent Tone Score',S.scores.tone+'%'],
-    ['Complaint Handling',S.scores.negativity+'%'],['Resolution Score',S.scores.resolution+'%']];
-  for (const mm of metrics) {
-    doc.setFillColor(clr.bg[0],clr.bg[1],clr.bg[2]); doc.rect(m,y-2,cw,8,'F');
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(clr.gray);
-    doc.text(mm[0], m+4, y+1);
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(clr.blue);
-    doc.text(mm[1], m+cw-30, y+1); y += 9;
+  var metrics = [
+    ['Overall Quality', S.scores.overall + '% (' + S.scores.grade + ')'],
+    ['Empathy Score', S.scores.empathy + '%'],
+    ['Agent Tone Score', S.scores.tone + '%'],
+    ['Complaint Handling', S.scores.negativity + '%'],
+    ['Resolution Score', S.scores.resolution + '%']
+  ];
+  for (var mi = 0; mi < metrics.length; mi++) {
+    fc(245,247,250); doc.rect(m, y-2, cw, 8, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); tc(60,60,60);
+    doc.text(metrics[mi][0], m+4, y+1);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(37,99,235);
+    doc.text(metrics[mi][1], m+cw-30, y+1); y += 9;
   }
   y += 2;
+  ln();
 
-  doc.setDrawColor(clr.blue[0],clr.blue[1],clr.blue[2]); doc.setLineWidth(0.4);
-  if (y+4 > ph-m) pg(); doc.line(m,y,pw-m,y); y += 7;
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(clr.blue);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(37,99,235);
   doc.text('Call Statistics', m, y); y += 6;
-  const stats = [['Duration',S.callData.duration],
-    ['Agent Turns',S.callData.agentUtts+' ('+S.callData.agentWords+' words)'],
-    ['Customer Turns',S.callData.custUtts+' ('+S.callData.custWords+' words)'],
-    ['Avg Response Time',S.callData.avgResponseTime+'s'],['Stress Level',S.callData.stress]];
-  for (const s of stats) {
-    doc.setFillColor(clr.bg[0],clr.bg[1],clr.bg[2]); doc.rect(m,y-2,cw,8,'F');
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(clr.gray);
-    doc.text(s[0], m+4, y+1);
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(clr.blue);
-    doc.text(s[1], m+cw-30, y+1); y += 9;
+  var stats = [
+    ['Duration', S.callData.duration],
+    ['Agent Turns', S.callData.agentUtts + ' (' + S.callData.agentWords + ' words)'],
+    ['Customer Turns', S.callData.custUtts + ' (' + S.callData.custWords + ' words)'],
+    ['Avg Response Time', S.callData.avgResponseTime + 's'],
+    ['Stress Level', S.callData.stress]
+  ];
+  for (var si = 0; si < stats.length; si++) {
+    fc(245,247,250); doc.rect(m, y-2, cw, 8, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); tc(60,60,60);
+    doc.text(stats[si][0], m+4, y+1);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(37,99,235);
+    doc.text(stats[si][1], m+cw-30, y+1); y += 9;
   }
 
   // ===== TRANSCRIPT =====
-  pg(); head('Full Transcript', 16);
-  for (const u of S.utterances) {
-    if (y+12 > ph-m) pg();
-    const sp = u.speaker==='A'?'Agent':'Customer';
-    const tm = fmtDur((u.start||0)/1000);
-    const se = u.sentiment||'NEUTRAL';
-    doc.setFillColor(u.speaker==='A'?235:240,u.speaker==='A'?240:235,u.speaker==='A'?255:250);
-    doc.rect(m,y-2,cw,4,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(7);
-    doc.setTextColor(u.speaker==='A'?37:210,u.speaker==='A'?99:150,u.speaker==='A'?235:50);
+  pg(); hd('Full Transcript', 16);
+  for (var ui = 0; ui < S.utterances.length; ui++) {
+    var u = S.utterances[ui];
+    if (y + 12 > ph - m) pg();
+    var sp = u.speaker === 'A' ? 'Agent' : 'Customer';
+    var tm = fmtDur((u.start || 0) / 1000);
+    var se = u.sentiment || 'NEUTRAL';
+    fc(u.speaker==='A'?235:240, u.speaker==='A'?240:235, u.speaker==='A'?255:250);
+    doc.rect(m, y-2, cw, 4, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+    tc(u.speaker==='A'?37:210, u.speaker==='A'?99:150, u.speaker==='A'?235:50);
     doc.text(sp, m+2, y+1);
-    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(clr.lightGray);
-    doc.text('['+tm+'] \u00b7 '+se, m+18, y+1); y += 5;
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
-    const tl = doc.splitTextToSize(u.text, cw-6);
-    for (const t of tl) { if (y+4 > ph-m) pg(); doc.text(t, m+3, y); y += 4; }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); tc(120,130,150);
+    doc.text('[' + tm + '] \u00b7 ' + se, m+18, y+1); y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
+    var tl = doc.splitTextToSize(u.text, cw - 6);
+    for (var ti = 0; ti < tl.length; ti++) {
+      if (y + 4 > ph - m) pg();
+      doc.text(tl[ti], m+3, y); y += 4;
+    }
     y += 1;
   }
 
   // ===== NEGATIVE MOMENTS =====
   if (S.negativeMoments.length) {
-    pg(); head('Negative Moments', 16);
-    S.negativeMoments.forEach((nm, i) => {
-      if (y+18 > ph-m) pg();
-      const good = nm.responseQuality==='EXCELLENT'||nm.responseQuality==='GOOD';
-      doc.setFillColor(good?240:255, good?250:235, good?240:235);
+    pg(); hd('Negative Moments', 16);
+    for (var ni = 0; ni < S.negativeMoments.length; ni++) {
+      var nm = S.negativeMoments[ni];
+      if (y + 18 > ph - m) pg();
+      var good = nm.responseQuality === 'EXCELLENT' || nm.responseQuality === 'GOOD';
+      fc(good?240:255, good?250:235, good?240:235);
       doc.rect(m, y, cw, 7, 'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(9);
-      doc.setTextColor(good?clr.green[0]:clr.red[0], good?clr.green[1]:clr.red[1], good?clr.green[2]:clr.red[2]);
-      doc.text('#'+(i+1)+'  Incident at '+fmtDur((nm.customerStart||0)/1000), m+3, y+4); y += 9;
-      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.red);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      tc(good?34:200, good?160:60, good?80:60);
+      doc.text('#' + (ni+1) + '  Incident at ' + fmtDur((nm.customerStart||0)/1000), m+3, y+4); y += 9;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(200,60,60);
       doc.text('Customer:', m+3, y); y += 4;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
-      const cl = doc.splitTextToSize('"'+nm.customerText+'"', cw-10);
-      for (const l of cl) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
-      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.blue);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
+      var cl = doc.splitTextToSize('"' + nm.customerText + '"', cw - 10);
+      for (var cli = 0; cli < cl.length; cli++) {
+        if (y + 4 > ph - m) pg();
+        doc.text(cl[cli], m+6, y); y += 4;
+      }
+      y += 2;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(37,99,235);
       doc.text('Agent Response:', m+3, y); y += 4;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
-      const al = doc.splitTextToSize('"'+nm.agentText+'"', cw-10);
-      for (const l of al) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
-      doc.setFillColor(good?230:255, good?245:230, good?230:230);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
+      var al = doc.splitTextToSize('"' + nm.agentText + '"', cw - 10);
+      for (var ali = 0; ali < al.length; ali++) {
+        if (y + 4 > ph - m) pg();
+        doc.text(al[ali], m+6, y); y += 4;
+      }
+      y += 2;
+      fc(good?230:255, good?245:230, good?230:230);
       doc.rect(m+3, y-1, 40, 5, 'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(7);
-      doc.setTextColor(good?clr.green[0]:clr.red[0], good?clr.green[1]:clr.red[1], good?clr.green[2]:clr.red[2]);
-      doc.text('Rating: '+nm.responseQuality, m+5, y+1); y += 8;
-    });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+      tc(good?34:200, good?160:60, good?80:60);
+      doc.text('Rating: ' + nm.responseQuality, m+5, y+1); y += 8;
+    }
   }
 
   // ===== SCRIPT SUGGESTIONS =====
-  const poorM = S.negativeMoments.filter(m => m.responseQuality==='POOR'||m.responseQuality==='FAILED');
+  var poorM = [];
+  for (var pi = 0; pi < S.negativeMoments.length; pi++) {
+    if (S.negativeMoments[pi].responseQuality === 'POOR' || S.negativeMoments[pi].responseQuality === 'FAILED')
+      poorM.push(S.negativeMoments[pi]);
+  }
   if (poorM.length) {
-    pg(); head('Script Suggestions & Coaching', 16);
-    poorM.forEach((nm, i) => {
-      if (y+18 > ph-m) pg();
-      doc.setFillColor(255,248,240); doc.rect(m,y,cw,7,'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(9);
-      doc.setTextColor(clr.orange[0],clr.orange[1],clr.orange[2]);
-      doc.text('Situation #'+(i+1), m+3, y+4); y += 9;
-      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.red);
+    pg(); hd('Script Suggestions & Coaching', 16);
+    for (var pj = 0; pj < poorM.length; pj++) {
+      var pnm = poorM[pj];
+      if (y + 18 > ph - m) pg();
+      fc(255,248,240); doc.rect(m, y, cw, 7, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); tc(200,120,30);
+      doc.text('Situation #' + (pj+1), m+3, y+4); y += 9;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(200,60,60);
       doc.text('Actual Response:', m+3, y); y += 4;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
-      const al = doc.splitTextToSize('"'+nm.agentText+'"', cw-10);
-      for (const l of al) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
-      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(clr.green);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
+      var sal = doc.splitTextToSize('"' + pnm.agentText + '"', cw - 10);
+      for (var sali = 0; sali < sal.length; sali++) {
+        if (y + 4 > ph - m) pg();
+        doc.text(sal[sali], m+6, y); y += 4;
+      }
+      y += 2;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); tc(34,160,80);
       doc.text('Suggested Response:', m+3, y); y += 4;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
-      const sl = doc.splitTextToSize('"'+genAlt(nm.customerText)+'"', cw-10);
-      for (const l of sl) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 2;
-      doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(clr.blue);
-      const tip = doc.splitTextToSize('Tip: '+genTip(nm), cw-10);
-      for (const l of tip) { if (y+4 > ph-m) pg(); doc.text(l, m+6, y); y += 4; } y += 4;
-    });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
+      var ssl = doc.splitTextToSize('"' + genAlt(pnm.customerText) + '"', cw - 10);
+      for (var ssi = 0; ssi < ssl.length; ssi++) {
+        if (y + 4 > ph - m) pg();
+        doc.text(ssl[ssi], m+6, y); y += 4;
+      }
+      y += 2;
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); tc(37,99,235);
+      var tipL = doc.splitTextToSize('Tip: ' + genTip(pnm), cw - 10);
+      for (var tli = 0; tli < tipL.length; tli++) {
+        if (y + 4 > ph - m) pg();
+        doc.text(tipL[tli], m+6, y); y += 4;
+      }
+      y += 4;
+    }
   }
 
   // ===== RECOMMENDATIONS =====
-  pg(); head('Recommendations', 16);
-
-  const recs = [
-    { label:'Areas for Improvement', color:clr.red, items:[
+  pg(); hd('Recommendations', 16);
+  var recs = [
+    { label: 'Areas for Improvement', r: 200, g: 60, b: 60, items: [
       'Practice acknowledging customer emotions before jumping to solutions.',
       'Maintain solution-oriented language throughout the call.',
       'Work on de-escalation techniques for better resolution rates.']},
-    { label:'Follow-Up Actions', color:clr.orange, items:[
+    { label: 'Follow-Up Actions', r: 200, g: 120, b: 30, items: [
       'Follow up with customer to ensure full satisfaction.',
       'Track recurring complaint themes for team training.',
       'Review empathy and active listening training modules.']},
-    { label:'Strengths & Positives', color:clr.green, items:[
-      'Good engagement with '+S.callData.totalUtts+' utterances exchanged.',
-      'Quick response time of '+S.callData.avgResponseTime+'s.',
+    { label: 'Strengths & Positives', r: 34, g: 160, b: 80, items: [
+      'Good engagement with ' + S.callData.totalUtts + ' utterances exchanged.',
+      'Quick response time of ' + S.callData.avgResponseTime + 's.',
       'Low filler word count shows clear communication.']}
   ];
-  for (const rc of recs) {
-    if (y+10 > ph-m) pg();
-    doc.setFillColor(rc.color[0],rc.color[1],rc.color[2]); doc.rect(m,y-2,4,12,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(10);
-    doc.setTextColor(rc.color[0],rc.color[1],rc.color[2]);
+  for (var ri = 0; ri < recs.length; ri++) {
+    var rc = recs[ri];
+    if (y + 10 > ph - m) pg();
+    fc(rc.r, rc.g, rc.b); doc.rect(m, y-2, 4, 12, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); tc(rc.r, rc.g, rc.b);
     doc.text(rc.label, m+8, y+2); y += 10;
-    for (const item of rc.items) {
-      if (y+5 > ph-m) pg();
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(clr.gray);
-      const il = doc.splitTextToSize('\u2022  '+item, cw-12);
-      for (const l of il) { if (y+4 > ph-m) pg(); doc.text(l, m+10, y); y += 4; }
+    for (var rj = 0; rj < rc.items.length; rj++) {
+      if (y + 5 > ph - m) pg();
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); tc(80,80,80);
+      var il = doc.splitTextToSize('\u2022  ' + rc.items[rj], cw - 12);
+      for (var ili = 0; ili < il.length; ili++) {
+        if (y + 4 > ph - m) pg();
+        doc.text(il[ili], m+10, y); y += 4;
+      }
       y += 1;
-    } y += 3;
+    }
+    y += 3;
   }
 
   // ===== FOOTER =====
-  for (let i = 0; i < doc.internal.getNumberOfPages(); i++) {
-    doc.setPage(i+1);
-    doc.setFillColor(clr.blue[0],clr.blue[1],clr.blue[2]); doc.rect(0,ph-8,pw,8,'F');
-    doc.setFont('helvetica','normal'); doc.setFontSize(7);
-    doc.setTextColor(220,230,255); doc.text('VoiceIQ AI Call Analysis Report', m, ph-3);
-    doc.text('Page '+(i+1)+' of '+doc.internal.getNumberOfPages(), pw-m-25, ph-3);
+  var totalPages = doc.internal.getNumberOfPages();
+  for (var fi = 0; fi < totalPages; fi++) {
+    doc.setPage(fi + 1);
+    fc(37, 99, 235); doc.rect(0, ph-8, pw, 8, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); tc(220,230,255);
+    doc.text('VoiceIQ AI Call Analysis Report', m, ph-3);
+    doc.text('Page ' + (fi+1) + ' of ' + totalPages, pw-m-25, ph-3);
   }
 
   doc.save('VoiceIQ_Call_Analysis_Report.pdf');
   showToast('PDF report downloaded!', 'success');
+  } catch(e) {
+    console.error('PDF error:', e);
+    showToast('PDF error: ' + e.message, 'error');
+  }
 }
 
 /* ========================= EXCEL ========================= */
