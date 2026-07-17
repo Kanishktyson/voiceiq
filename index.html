@@ -12,7 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#334155 transparent}
-:root{--bg:#0f172a;--bg2:#1e293b;--card:#1e293b;--blue:#2563eb;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--purple:#8b5cf6;--text:#f1f5f9;--text2:#94a3b8;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.4)}
+:root{--bg:#0f172a;--bg2:#1e293b;--card:#1e293b;--blue:#2563eb;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--purple:#8b5cf6;--cyan:#06b6d4;--text:#f1f5f9;--text2:#94a3b8;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.4)}
 body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
 .screen{display:none;opacity:0;transition:opacity .15s;animation:fadeUp .15s ease forwards;min-height:100vh;padding:20px 16px}
 .screen.active{display:block}
@@ -335,6 +335,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <div class="card-title"><i class="fas fa-chart-pie" style="color:var(--purple)"></i> Talk Ratio</div>
 <div id="talkRatioContent" class="text-center" style="padding:8px"></div>
 </div>
+<div class="card" id="audioQualityCard">
+<div class="card-title"><i class="fas fa-wave-square" style="color:var(--cyan)"></i> Audio Quality</div>
+<div id="audioQualityContent" class="text-center" style="padding:8px;font-size:13px"></div>
+</div>
 <div class="nav-arrows">
 <button class="btn btn-secondary" onclick="goToScreen(4)"><i class="fas fa-chevron-left"></i> Previous</button>
 <button class="btn btn-primary" onclick="goToScreen(6)">Next <i class="fas fa-chevron-right"></i></button>
@@ -632,6 +636,8 @@ async function drawWaveform(file) {
   const arr = await file.arrayBuffer();
   const buf = await ctx.decodeAudioData(arr);
   S.audioBuffer = buf;
+  analyzeAudio(buf);
+  calcPaceScore();
   const dur = buf.duration;
   const m = Math.floor(dur / 60), s = Math.floor(dur % 60);
   document.getElementById('audioDuration').textContent = m + ':' + String(s).padStart(2, '0');
@@ -964,92 +970,66 @@ async function pollTranscription(id) {
 }
 
 async function runWhisperFallback() {
-  showToast('Downloading Whisper AI model (75MB) ...', 'info');
+  var lang = document.getElementById('langSelect')?.value || 'auto';
+  var useTranslate = lang === 'hi' || lang === 'auto';
+  var modelName = useTranslate ? 'Xenova/whisper-tiny' : 'Xenova/whisper-tiny.en';
+  showToast(useTranslate ? 'Downloading Whisper for Hindi\u2192English translation (75MB)...' : 'Downloading Whisper AI model (75MB)...', 'info');
   updateStep(1, 'running');
   document.getElementById('sstatus1').textContent = 'Loading Whisper...';
-  let pipe;
+  var pipe;
   try {
-    const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
-    pipe = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
+    var mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+    pipe = await mod.pipeline('automatic-speech-recognition', modelName, {
       quantized: true,
-      progress_callback: (p) => {
-        if (p.status === 'progress') {
-          document.getElementById('sstatus1').textContent = 'Model: ' + Math.round(p.progress * 100) + '%';
-        }
+      progress_callback: function(p) {
+        if (p.status === 'progress') document.getElementById('sstatus1').textContent = 'Model: ' + Math.round(p.progress * 100) + '%';
       }
     });
-  } catch (e) {
-    throw new Error('Whisper model failed to load: ' + e.message);
-  }
+  } catch(e) { throw new Error('Whisper model failed to load: ' + e.message); }
   updateStep(1, 'done');
   updateStep(2, 'running');
-  document.getElementById('sstatus2').textContent = 'Transcribing...';
+  document.getElementById('sstatus2').textContent = useTranslate ? 'Translating audio to English...' : 'Transcribing...';
 
-  let audioData;
-  if (S.audioBuffer) {
-    audioData = S.audioBuffer;
-  } else {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const arr = await S.audioFile.arrayBuffer();
+  var audioData;
+  if (S.audioBuffer) { audioData = S.audioBuffer; }
+  else {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var arr = await S.audioFile.arrayBuffer();
     audioData = await ctx.decodeAudioData(arr);
   }
+  analyzeAudio(audioData);
+  calcPaceScore();
+  S.audioBuffer = audioData;
 
-  const sampleRate = 16000;
-  const origRate = audioData.sampleRate;
-  const channels = audioData.numberOfChannels;
-  const mono = channels > 1
-    ? new Float32Array(audioData.length)
-    : audioData.getChannelData(0);
-  if (channels > 1) {
-    const ch0 = audioData.getChannelData(0);
-    const ch1 = audioData.getChannelData(1);
-    for (let i = 0; i < audioData.length; i++) mono[i] = (ch0[i] + ch1[i]) / 2;
+  var sr2 = 16000, origRate = audioData.sampleRate, chs = audioData.numberOfChannels;
+  var mono = chs > 1 ? new Float32Array(audioData.length) : audioData.getChannelData(0);
+  if (chs > 1) {
+    var ch0 = audioData.getChannelData(0), ch1 = audioData.getChannelData(1);
+    for (var mi = 0; mi < audioData.length; mi++) mono[mi] = (ch0[mi] + ch1[mi]) / 2;
   }
-
-  // Resample to 16kHz
-  const ratio = sampleRate / origRate;
-  const newLen = Math.round(mono.length * ratio);
-  const resampled = new Float32Array(newLen);
-  for (let i = 0; i < newLen; i++) {
-    const src = i / ratio;
-    const s = Math.floor(src);
-    const f = src - s;
-    resampled[i] = s + 1 < mono.length
-      ? mono[s] * (1 - f) + mono[s + 1] * f
-      : mono[s];
+  var ratio = sr2 / origRate, newLen = Math.round(mono.length * ratio);
+  var resampled = new Float32Array(newLen);
+  for (var ri = 0; ri < newLen; ri++) {
+    var src = ri / ratio, s = Math.floor(src), f = src - s;
+    resampled[ri] = s + 1 < mono.length ? mono[s] * (1 - f) + mono[s + 1] * f : mono[s];
   }
+  var opts = { return_timestamps: true };
+  if (useTranslate) { opts.task = 'translate'; opts.language = 'hi'; }
+  var result = await pipe(resampled, opts);
 
-  const result = await pipe(resampled, { return_timestamps: true });
-
-  // Build utterances from Whisper result
-  const utts = [];
+  var utts = [];
   if (result.chunks) {
-    for (const ch of result.chunks) {
-      const startMs = Math.round((ch.timestamp?.[0] || 0) * 1000);
-      const endMs = Math.round((ch.timestamp?.[1] || 0) * 1000);
-      utts.push({
-        speaker: 'A',
-        text: ch.text || '',
-        start: startMs,
-        end: endMs || startMs + 2000,
-        sentiment: 'NEUTRAL',
-        confidence: 0.85
-      });
+    for (var ci = 0; ci < result.chunks.length; ci++) {
+      var ch = result.chunks[ci];
+      var startMs = Math.round((ch.timestamp?.[0] || 0) * 1000);
+      var endMs = Math.round((ch.timestamp?.[1] || 0) * 1000);
+      utts.push({ speaker: 'A', text: ch.text || '', start: startMs, end: endMs || startMs + 2000, sentiment: 'NEUTRAL', confidence: 0.85 });
     }
   }
-  // If no chunks, use full text
   if (!utts.length && result.text) {
-    utts.push({
-      speaker: 'A',
-      text: result.text,
-      start: 0,
-      end: 60000,
-      sentiment: 'NEUTRAL',
-      confidence: 0.85
-    });
+    utts.push({ speaker: 'A', text: result.text, start: 0, end: 60000, sentiment: 'NEUTRAL', confidence: 0.85 });
   }
-
-  document.getElementById('sstatus2').textContent = 'Done (Whisper)';
+  document.getElementById('sstatus2').textContent = useTranslate ? 'Done (Whisper translate)' : 'Done (Whisper)';
   return { utterances: utts };
 }
 
@@ -1353,6 +1333,7 @@ function renderAll() {
   renderNegatives();
   renderHeatmap();
   renderTalkRatio();
+  renderAudioQuality();
   renderDashboard();
   renderSuggester();
   renderRecommendations();
@@ -1516,6 +1497,36 @@ function renderTalkRatio() {
         '<p style="font-size:13px;color:var(--text2)"><i class="fas fa-regular fa-circle"></i> Filler words: ' + cd.fillerWords + '</p>',
         '<p style="font-size:13px;color:' + (tb.ideal ? 'var(--green)' : 'var(--orange)') + '"><i class="fas fa-balance-scale"></i> Talk balance: ' + (tb.ideal ? 'Balanced' : 'Agent-heavy') + ' (' + tb.score + '%)</p>',
         '<p style="font-size:13px;color:' + (intr.count < 3 ? 'var(--green)' : 'var(--orange)') + '"><i class="fas fa-hand-paper"></i> Interruptions: ' + intr.count + ' (' + intr.score + '%)</p>',
+      '</div>',
+    '</div>'
+  ].join('');
+}
+
+/* ========================= RENDER: AUDIO QUALITY ========================= */
+function renderAudioQuality() {
+  var c = document.getElementById('audioQualityContent');
+  var aa = S.audioAnalysis;
+  if (!aa) { c.innerHTML = '<p class="text-muted">Audio analysis not available</p>'; return; }
+  var ps = S.paceScore || 0;
+  var paceLabel = ps >= 80 ? 'Good' : ps >= 60 ? 'Fair' : 'Too fast/slow';
+  var paceColor = ps >= 80 ? 'var(--green)' : ps >= 60 ? 'var(--orange)' : 'var(--red)';
+  c.innerHTML = [
+    '<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">',
+      '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
+        '<div style="font-size:22px;font-weight:800;color:' + (aa.clarity === 'Excellent' ? 'var(--green)' : aa.clarity === 'Good' ? 'var(--blue)' : 'var(--orange)') + '">' + aa.clarity + '</div>',
+        '<div style="font-size:11px;color:var(--text2)">Audio Clarity</div>',
+      '</div>',
+      '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
+        '<div style="font-size:22px;font-weight:800;color:' + paceColor + '">' + (aa.pace || 0) + ' wpm</div>',
+        '<div style="font-size:11px;color:var(--text2)">Speaking Pace (' + paceLabel + ')</div>',
+      '</div>',
+      '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
+        '<div style="font-size:22px;font-weight:800;color:var(--green)">' + aa.voiceActivity + '%</div>',
+        '<div style="font-size:11px;color:var(--text2)">Voice Activity</div>',
+      '</div>',
+      '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
+        '<div style="font-size:22px;font-weight:800;color:' + (aa.silenceCount < 5 ? 'var(--green)' : 'var(--orange)') + '">' + aa.silenceCount + ' / ' + aa.silenceTotal + 's</div>',
+        '<div style="font-size:11px;color:var(--text2)">Pauses / Silence</div>',
       '</div>',
     '</div>'
   ].join('');
@@ -2036,28 +2047,115 @@ function esc(str) { if (!str) return ''; return str.replace(/&/g,'&amp;').replac
 
 function hasDevanagari(t) { return /[\u0900-\u097F]/.test(t); }
 
+function hasNonLatin(t) { return /[\u00FF-\uFFFF]/.test(t); }
+
+// Multi-service translation pipeline: Google Translate -> MyMemory -> fallback
 async function translateTxt(text) {
-  if (!text || !hasDevanagari(text)) return text;
+  if (!text || (!hasDevanagari(text) && !hasNonLatin(text))) return text;
+  var t = text.substring(0, 480);
+  // Try Google Translate (free, no key)
   try {
-    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0,480)) + '&langpair=hi|en');
-    if (!r.ok) return text;
-    const d = await r.json();
-    if (d.responseData && d.responseData.translatedText)
-      return d.responseData.translatedText.replace(/&#\d+;/g,'').trim();
-  } catch(e) { console.warn('Translation failed'); }
+    var r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=' + encodeURIComponent(t));
+    if (r.ok) {
+      var d = await r.json();
+      if (d && d[0] && d[0][0] && d[0][0][0]) return d[0][0][0].trim();
+    }
+  } catch(e) {}
+  // Fallback: MyMemory
+  try {
+    var r2 = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(t) + '&langpair=hi|en');
+    if (r2.ok) {
+      var d2 = await r2.json();
+      if (d2.responseData && d2.responseData.translatedText)
+        return d2.responseData.translatedText.replace(/&#\d+;/g,'').trim();
+    }
+  } catch(e) {}
+  // If all translate fails, transliterate Devanagari to rough Latin
   return text;
 }
 
 async function translateAll() {
-  const all = [];
-  for (const u of S.utterances) {
-    if (hasDevanagari(u.text)) all.push(translateTxt(u.text).then(t => u.text = t));
+  var all = [];
+  for (var ui = 0; ui < S.utterances.length; ui++) {
+    var u = S.utterances[ui];
+    if (hasDevanagari(u.text)) all.push(translateTxt(u.text).then(function(t) { return function(v) { t.text = v; }; }(u)));
   }
-  for (const m of S.negativeMoments) {
-    if (hasDevanagari(m.customerText)) all.push(translateTxt(m.customerText).then(t => m.customerText = t));
-    if (hasDevanagari(m.agentText)) all.push(translateTxt(m.agentText).then(t => m.agentText = t));
+  for (var mi = 0; mi < S.negativeMoments.length; mi++) {
+    var m = S.negativeMoments[mi];
+    if (hasDevanagari(m.customerText)) all.push(translateTxt(m.customerText).then(function(t) { return function(v) { t.customerText = v; }; }(m)));
+    if (hasDevanagari(m.agentText)) all.push(translateTxt(m.agentText).then(function(t) { return function(v) { t.agentText = v; }; }(m)));
   }
   await Promise.all(all);
+}
+
+/* ===== ADVANCED ALGORITHM: Audio Analysis ===== */
+function analyzeAudio(buffer) {
+  if (!buffer) return;
+  var data = buffer.getChannelData(0);
+  var sr = buffer.sampleRate;
+  var dur = buffer.duration;
+  var totalSamples = data.length;
+
+  // Silence detection (pauses > 1s)
+  var silences = [];
+  var threshold = 0.02;
+  var minGap = sr; // 1 second
+  var inSilence = false;
+  var silenceStart = 0;
+  for (var si = 0; si < totalSamples; si++) {
+    var abs = Math.abs(data[si]);
+    if (abs < threshold) {
+      if (!inSilence) { inSilence = true; silenceStart = si; }
+    } else {
+      if (inSilence) {
+        var gapLen = si - silenceStart;
+        if (gapLen >= minGap) silences.push({ start: silenceStart / sr, end: si / sr, dur: gapLen / sr });
+        inSilence = false;
+      }
+    }
+  }
+  if (inSilence && (totalSamples - silenceStart) >= minGap)
+    silences.push({ start: silenceStart / sr, end: totalSamples / sr, dur: (totalSamples - silenceStart) / sr });
+
+  // RMS volume per second
+  var secs = Math.floor(dur);
+  var rmsProfile = [];
+  for (var si2 = 0; si2 < secs; si2++) {
+    var start = si2 * sr;
+    var end = Math.min(start + sr, totalSamples);
+    var sum = 0;
+    for (var sj = start; sj < end; sj++) sum += data[sj] * data[sj];
+    rmsProfile.push(Math.sqrt(sum / (end - start)));
+  }
+
+  // Peak volume
+  var peak = 0;
+  for (var si3 = 0; si3 < totalSamples; si3++) { var a = Math.abs(data[si3]); if (a > peak) peak = a; }
+  var avgRms = 0;
+  for (var ri = 0; ri < rmsProfile.length; ri++) avgRms += rmsProfile[ri];
+  avgRms = rmsProfile.length > 0 ? avgRms / rmsProfile.length : 0;
+
+  S.audioAnalysis = {
+    duration: Math.round(dur * 10) / 10,
+    silences: silences,
+    silenceCount: silences.length,
+    silenceTotal: Math.round(silences.reduce(function(a, s) { return a + s.dur; }, 0) * 10) / 10,
+    voiceActivity: Math.round((dur - silences.reduce(function(a, s) { return a + s.dur; }, 0)) / dur * 100),
+    peakVolume: Math.round(peak * 100),
+    avgVolume: Math.round(avgRms * 100),
+    volumeProfile: rmsProfile,
+    clarity: peak > 0.8 ? 'Excellent' : peak > 0.4 ? 'Good' : peak > 0.1 ? 'Fair' : 'Poor',
+    pace: S.callData ? Math.round(S.callData.totalWords / dur * 60) : 0
+  };
+}
+
+/* ===== ADVANCED ALGORITHM: Speaking Pace Score ===== */
+function calcPaceScore() {
+  if (!S.audioAnalysis) { S.paceScore = 100; return; }
+  var pace = S.audioAnalysis.pace;
+  // Ideal pace: 120-160 wpm
+  var score = pace < 80 ? 60 : pace < 100 ? 80 : pace <= 160 ? 100 : pace <= 190 ? 80 : pace <= 220 ? 60 : 40;
+  S.paceScore = score;
 }
 </script>
 </body>
