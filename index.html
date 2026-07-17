@@ -1779,7 +1779,14 @@ function downloadPDF() {
     doc.text('Page ' + (fi+1) + ' of ' + totalPages, pw-m-25, ph-3);
   }
 
-  doc.save('VoiceIQ_Call_Analysis_Report.pdf');
+  var blob = doc.output('blob');
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'VoiceIQ_Call_Analysis_Report.pdf';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
   showToast('PDF report downloaded!', 'success');
   } catch(e) {
     console.error('PDF error:', e);
