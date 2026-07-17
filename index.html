@@ -14,9 +14,11 @@
 *{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#3d2a5e transparent}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#3d2a5e;border-radius:4px}
 :root{--bg:#0d0221;--bg2:#16032e;--card:rgba(22,3,46,0.75);--blue:#7c3aed;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--purple:#a78bfa;--cyan:#06b6d4;--text:#f1f5f9;--text2:#94a3b8;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.5);--glow:0 0 30px rgba(124,58,237,0.15)}
-body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;background-image:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.03) 0%,transparent 50%)}
+body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;position:relative}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.04) 0%,transparent 50%);animation:bgShift 12s ease-in-out infinite alternate}
+@keyframes bgShift{0%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}100%{opacity:0.6;transform:scale(1)}}
 body.intro-active{overflow:hidden;position:fixed;width:100%}
-.screen{display:none;opacity:0;transition:opacity .35s ease,transform .35s ease;min-height:100vh;padding:20px 16px;transform:translateY(8px)}
+.screen{display:none;opacity:0;transition:opacity .4s ease,transform .4s ease;min-height:100vh;padding:20px 16px;transform:translateY(12px)}
 .screen.active{display:block;opacity:1;transform:translateY(0)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes glow{0%,100%{text-shadow:0 0 20px rgba(124,58,237,0.3)}50%{text-shadow:0 0 50px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.2)}}
@@ -32,13 +34,23 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 @keyframes scaleIn{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes gradientFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes fadeSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 8px rgba(124,58,237,0.2))}50%{filter:drop-shadow(0 0 25px rgba(124,58,237,0.5))}}
+@keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes iconPulse{0%,100%{transform:scale(1);opacity:0.9}50%{transform:scale(1.08);opacity:1}}
+@keyframes cardEntrance{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 .container{max-width:1000px;margin:0 auto;padding:8px}
 
-/* ===== GLASS CARD SYSTEM ===== */
-.card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:14px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .25s ease,box-shadow .25s ease}
-.card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.5),var(--glow)}
+/* ===== GLASS CARD SYSTEM with 3D hover ===== */
+.card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:14px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;animation:cardEntrance .4s cubic-bezier(0.22,1,0.36,1) both;perspective:800px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),transparent);opacity:0.6;transition:opacity .3s}
+.card:hover::before{opacity:1}
+.card:hover{transform:translateY(-3px) scale(1.005);box-shadow:0 16px 48px rgba(0,0,0,0.5),var(--glow),0 0 60px rgba(124,58,237,0.08)}
+.card:nth-child(1){animation-delay:0s}.card:nth-child(2){animation-delay:0.06s}.card:nth-child(3){animation-delay:0.12s}
+.card:nth-child(4){animation-delay:0.18s}.card:nth-child(5){animation-delay:0.24s}.card:nth-child(6){animation-delay:0.3s}
+.card:nth-child(7){animation-delay:0.36s}.card:nth-child(8){animation-delay:0.42s}.card:nth-child(9){animation-delay:0.48s}
+.card:nth-child(10){animation-delay:0.54s}.card:nth-child(11){animation-delay:0.6s}.card:nth-child(12){animation-delay:0.66s}
 .card-title{font-size:18px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.card-title i{-webkit-text-fill-color:var(--blue);color:var(--blue)}
+.card-title i{-webkit-text-fill-color:initial;color:var(--blue);background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(167,139,250,0.08));width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;animation:iconPulse 3s ease-in-out infinite}
 
 /* ===== GRADIENT BG ===== */
 .gradient-bg{background:linear-gradient(135deg,#0d0221,#2d0a4a)}
@@ -145,11 +157,11 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 .tag.purple{background:rgba(139,92,246,0.12);color:var(--purple)}
 .demo-badge{position:fixed;top:12px;right:12px;z-index:100;padding:6px 14px;border-radius:20px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--orange);font-size:11px;font-weight:700;letter-spacing:0.5px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 
-/* ===== SCORE RING ===== */
-.score-ring{width:180px;height:180px;margin:0 auto;position:relative;filter:drop-shadow(0 0 20px rgba(124,58,237,0.15))}
-.score-ring svg{width:100%;height:100%}
+/* ===== SCORE RING with animated glow ===== */
+.score-ring{width:180px;height:180px;margin:0 auto;position:relative;animation:pulseGlow 3s ease-in-out infinite}
+.score-ring svg{width:100%;height:100%;filter:drop-shadow(0 0 10px rgba(124,58,237,0.15))}
 .score-ring .score-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
-.score-ring .score-val .num{font-size:44px;font-weight:900;font-family:'Poppins',sans-serif;line-height:1}
+.score-ring .score-val .num{font-size:44px;font-weight:900;font-family:'Poppins',sans-serif;line-height:1;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 12px rgba(124,58,237,0.2))}
 .score-ring .score-val .lbl{font-size:16px;font-weight:600;color:var(--text2);margin-top:2px}
 
 /* ===== PROGRESS ITEMS ===== */
@@ -157,7 +169,8 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 .progress-item .phead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;color:var(--text2)}
 .progress-item .phead strong{color:var(--text)}
 .progress-item .track{height:8px;background:rgba(13,2,33,0.5);border-radius:4px;overflow:hidden}
-.progress-item .fill{height:100%;border-radius:4px;width:0%;transition:width .5s cubic-bezier(0.22,1,0.36,1)}
+.progress-item .fill{height:100%;border-radius:4px;width:0%;transition:width .5s cubic-bezier(0.22,1,0.36,1);background-size:200% 100%;position:relative;overflow:hidden}
+.progress-item .fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 30%,rgba(255,255,255,0.12) 50%,transparent 70%);background-size:200% 100%;animation:shimmerWide 2s ease-in-out infinite;pointer-events:none}
 
 /* ===== MOMENTS ===== */
 .moment-card{padding:16px;margin-bottom:10px;border-radius:10px;border-left:4px solid;background:rgba(255,255,255,0.02);transition:background .2s}
@@ -228,7 +241,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
 .kpi-card{padding:14px;border-radius:10px;text-align:center;background:rgba(255,255,255,0.02);border:1px solid rgba(124,58,237,0.06);transition:transform .2s,background .2s}
 .kpi-card:hover{transform:translateY(-2px);background:rgba(124,58,237,0.04)}
-.kpi-card .kpi-num{font-size:22px;font-weight:800;font-family:'Poppins',sans-serif}
+.kpi-card .kpi-num{font-size:22px;font-weight:800;font-family:'Poppins',sans-serif;text-shadow:0 0 20px currentColor}
 .kpi-card .kpi-lbl{font-size:11px;color:var(--text2);margin-top:2px}
 
 /* ===== CHECKMARK ===== */
@@ -448,7 +461,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div class="card text-center" style="position:relative">
 <div class="card-title justify-center"><i class="fas fa-medal" style="color:var(--orange)"></i> Quality Score</div>
 <div class="score-ring" id="scoreRing">
-<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="85" fill="none" stroke="#16032e" stroke-width="14"/><circle cx="100" cy="100" r="85" fill="none" stroke="var(--blue)" stroke-width="14" stroke-dasharray="534" stroke-dashoffset="534" id="scoreArc" stroke-linecap="round" transform="rotate(-90,100,100)"/></svg>
+<svg viewBox="0 0 200 200"><defs><filter id="glowArc"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><circle cx="100" cy="100" r="85" fill="none" stroke="rgba(124,58,237,0.06)" stroke-width="18"/><circle cx="100" cy="100" r="85" fill="none" stroke="#16032e" stroke-width="14"/><circle cx="100" cy="100" r="85" fill="none" stroke="var(--blue)" stroke-width="14" stroke-dasharray="534" stroke-dashoffset="534" id="scoreArc" stroke-linecap="round" transform="rotate(-90,100,100)" filter="url(#glowArc)"/></svg>
 <div class="score-val"><div class="num" id="overallScore">0</div><div class="lbl">Grade <span id="overallGrade">-</span></div></div>
 </div>
 </div>
