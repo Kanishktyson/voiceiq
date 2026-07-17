@@ -18,7 +18,7 @@ body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.04) 0%,transparent 50%);animation:bgShift 12s ease-in-out infinite alternate}
 @keyframes bgShift{0%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}100%{opacity:0.6;transform:scale(1)}}
 body.intro-active{overflow:hidden;position:fixed;width:100%}
-.screen{display:none;opacity:0;transition:opacity .4s ease,transform .4s ease;min-height:100vh;padding:20px 16px;transform:translateY(12px)}
+.screen{display:none;opacity:0;transition:opacity .4s ease,transform .4s ease;min-height:auto;padding:20px 16px;transform:translateY(12px)}
 .screen.active{display:block;opacity:1;transform:translateY(0)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes glow{0%,100%{text-shadow:0 0 20px rgba(124,58,237,0.3)}50%{text-shadow:0 0 50px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.2)}}
@@ -997,10 +997,6 @@ async function runAnalysis() {
 
     saveCallHistory();
     showToast('Full analysis complete!', 'success');
-    setTimeout(function() {
-      var el = document.getElementById('screen4');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 300);
 
   } catch (err) {
     console.error(err);
@@ -1985,7 +1981,64 @@ function renderRecommendations() {
 /* ========================= PDF GENERATION ========================= */
 function downloadPDF() {
   if (!S.scores) { showToast('Analyze a call first', 'error'); return; }
-  window.print();
+  try {
+    var { jsPDF } = window.jspdf;
+    var doc = new jsPDF();
+    var s = S.scores, cd = S.callData || {};
+    doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.text('VoiceIQ Call Report', 20, 25);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text('Generated: ' + new Date().toLocaleString(), 20, 33);
+    doc.setDrawColor(124,58,237); doc.setLineWidth(0.5); doc.line(20, 38, 190, 38);
+    var y = 48;
+    var addLine = function(k,v) {
+      if (y > 275) { doc.addPage(); y = 25; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(k + ':', 20, y);
+      doc.setFont('helvetica','normal'); doc.text(String(v), 80, y); y += 7;
+    };
+    addLine('Overall Score', s.overall + '% (' + s.grade + ')');
+    addLine('Call Duration', cd.duration || 'N/A');
+    addLine('Total Utts', cd.totalUtts || 'N/A');
+    addLine('Agent Turns', cd.agentUtts || 'N/A');
+    addLine('Customer Turns', cd.custUtts || 'N/A');
+    addLine('Avg Response', (cd.avgResponseTime||'N/A') + 's');
+    y += 3;
+    doc.setDrawColor(200,200,200); doc.line(20, y, 190, y); y += 8;
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Scores', 20, y); y += 8;
+    var metrics = [
+      ['Empathy', s.empathy], ['Tone', s.tone], ['Resolution', s.resolution],
+      ['Negativity', s.negativity], ['Balance', s.balance], ['Interruptions', s.interrupt],
+      ['Pace', s.pace], ['Turn-taking', s.turn], ['Keywords', s.keywords],
+      ['Listening', s.listening||50], ['Q Ratio', s.qratio||75], ['Hedging', s.hedging||75],
+      ['Echo', s.echo||75]
+    ];
+    for (var mi=0; mi<metrics.length; mi++) {
+      if (y > 270) { doc.addPage(); y = 25; }
+      doc.setFontSize(9); doc.setFont('helvetica','normal');
+      doc.text(metrics[mi][0], 25, y);
+      doc.setFont('helvetica','bold');
+      doc.text(metrics[mi][1] + '%', 100, y);
+      // draw bar
+      doc.setFillColor(230,230,230); doc.rect(120, y-3, 60, 4, 'F');
+      doc.setFillColor(124,58,237); doc.rect(120, y-3, Math.min(60, metrics[mi][1]*0.6), 4, 'F');
+      y += 8;
+    }
+    // add radar chart if canvas exists
+    try {
+      var rCanvas = document.getElementById('radarChart');
+      if (rCanvas) {
+        if (s && s.all) renderRadarChart('radarChart', [s.empathy,s.tone,s.resolution,s.negativity,s.balance,s.interrupt,s.pace,s.turn,s.keywords,s.listening||50,s.qratio||75,s.hedging||75,s.echo||75], s.labels);
+        var img = rCanvas.toDataURL('image/jpeg', 0.9);
+        doc.addPage();
+        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Performance Radar', 20, 25);
+        doc.addImage(img, 'JPEG', 40, 35, 130, 130);
+      }
+    } catch(e) {}
+    doc.save('VoiceIQ_Report.pdf');
+    showToast('PDF downloaded!', 'success');
+  } catch(e) {
+    console.error(e);
+    showToast('PDF failed — trying Print', 'error');
+    window.print();
+  }
 }
 
 /* ========================= EXCEL ========================= */
