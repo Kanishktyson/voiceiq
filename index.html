@@ -247,6 +247,11 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid #334155;
 <button class="btn btn-primary btn-lg" id="analyzeBtn" style="margin-top:20px;padding:16px 48px;font-size:18px;border-radius:16px" disabled>
 <i class="fas fa-magic"></i> Analyze Call
 </button>
+<p style="margin-top:8px;font-size:12px;color:var(--text2)">
+<i class="fas fa-microphone-alt"></i> Free alternative: 
+<a href="#" onclick="startBrowserSpeech();return false" style="color:var(--cyan);text-decoration:underline">Browser Speech Recognition</a>
+ (no API key, short audio)
+</p>
 <p id="analyzeError" style="color:var(--red);font-size:13px;margin-top:8px;display:none"></p>
 <p id="demoHint" style="color:var(--orange);font-size:12px;margin-top:8px;display:none"><i class="fas fa-flask"></i> No API key &mdash; will run in <strong>Demo Mode</strong> with sample data</p>
 </div>
@@ -704,6 +709,47 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
   await runAnalysis();
 });
 
+async function startBrowserSpeech() {
+  if (!hasSpeechRecognition()) { showToast('Speech recognition not supported in this browser. Use Chrome.', 'error'); return; }
+  if (!S.audioFile) { showToast('Please upload an audio file first', 'error'); return; }
+  showScreen(2);
+  resetSteps();
+  S.isDemo = false;
+  S.useBackend = false;
+  var t0 = performance.now();
+  try {
+    updateStep(0, 'running');
+    document.getElementById('sstatus0').textContent = 'Browser speech (free)...';
+    var result = await runBrowserSpeechRec(S.audioFile);
+    S.utterances = result.utterances || [];
+    S.timing.api = (performance.now() - t0) / 1000;
+
+    S.sentiments = S.utterances.map(function(u) { return { speaker: u.speaker, text: u.text, sentiment: 'NEUTRAL', start: u.start, end: u.end, confidence: u.confidence || 0.7 }; });
+    S.negativeMoments = [];
+    evaluateAll();
+    calcScores();
+    calcSentimentTrend();
+    detectInterruptions();
+    calcTalkBalance();
+    extractKeywords();
+    analyzeWordPatterns();
+    analyzeTurnTaking();
+    buildCallData();
+    renderAll();
+    document.getElementById('demoBadge').classList.add('hidden');
+    document.getElementById('timingDisplay').style.display = 'block';
+    document.getElementById('totalTime').textContent = ((performance.now() - t0) / 1000).toFixed(1);
+    document.getElementById('apiTime').textContent = '0';
+    document.getElementById('procTime').textContent = ((performance.now() - t0) / 1000).toFixed(1);
+
+    setTimeout(function() { showToast('Browser speech analysis complete!', 'success'); showScreen(3); }, 500);
+  } catch(e) {
+    console.error(e);
+    showToast('Browser speech error: ' + e.message, 'error');
+    goToScreen(1);
+  }
+}
+
 async function runAnalysis() {
   resetSteps();
   const t0 = performance.now();
@@ -776,6 +822,8 @@ async function runAnalysis() {
     detectInterruptions();
     calcTalkBalance();
     extractKeywords();
+    analyzeWordPatterns();
+    analyzeTurnTaking();
     updateStep(6, 'done');
     document.getElementById('sstatus6').textContent = 'Score: ' + S.scores.overall + '% (' + S.scores.grade + ')';
     updateProgress(87);
@@ -856,6 +904,8 @@ async function runBackendAnalysis() {
     detectInterruptions();
     calcTalkBalance();
     extractKeywords();
+    analyzeWordPatterns();
+    analyzeTurnTaking();
     buildCallDataFromBackend(data);
     renderAll();
 
@@ -927,6 +977,8 @@ async function runDemoAnalysis() {
   detectInterruptions();
   calcTalkBalance();
   extractKeywords();
+  analyzeWordPatterns();
+  analyzeTurnTaking();
   buildCallData();
   renderAll();
   setTimeout(() => { showToast('Demo analysis complete!', 'success'); showScreen(3); }, 500);
@@ -2047,13 +2099,10 @@ function esc(str) { if (!str) return ''; return str.replace(/&/g,'&amp;').replac
 
 function hasDevanagari(t) { return /[\u0900-\u097F]/.test(t); }
 
-function hasNonLatin(t) { return /[\u00FF-\uFFFF]/.test(t); }
-
-// Multi-service translation pipeline: Google Translate -> MyMemory -> fallback
+// Only translate if text actually contains Devanagari/Hindi script
 async function translateTxt(text) {
-  if (!text || (!hasDevanagari(text) && !hasNonLatin(text))) return text;
+  if (!text || !hasDevanagari(text)) return text;
   var t = text.substring(0, 480);
-  // Try Google Translate (free, no key)
   try {
     var r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=' + encodeURIComponent(t));
     if (r.ok) {
@@ -2061,7 +2110,6 @@ async function translateTxt(text) {
       if (d && d[0] && d[0][0] && d[0][0][0]) return d[0][0][0].trim();
     }
   } catch(e) {}
-  // Fallback: MyMemory
   try {
     var r2 = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(t) + '&langpair=hi|en');
     if (r2.ok) {
@@ -2070,7 +2118,6 @@ async function translateTxt(text) {
         return d2.responseData.translatedText.replace(/&#\d+;/g,'').trim();
     }
   } catch(e) {}
-  // If all translate fails, transliterate Devanagari to rough Latin
   return text;
 }
 
@@ -2153,9 +2200,153 @@ function analyzeAudio(buffer) {
 function calcPaceScore() {
   if (!S.audioAnalysis) { S.paceScore = 100; return; }
   var pace = S.audioAnalysis.pace;
-  // Ideal pace: 120-160 wpm
   var score = pace < 80 ? 60 : pace < 100 ? 80 : pace <= 160 ? 100 : pace <= 190 ? 80 : pace <= 220 ? 60 : 40;
   S.paceScore = score;
+}
+
+/* ===== FREE TOOL: Audio Preprocessor (noise gate + normalize) ===== */
+function preprocessAudio(buffer) {
+  if (!buffer) return buffer;
+  var sr = buffer.sampleRate;
+  var ch = buffer.numberOfChannels;
+  var len = buffer.length;
+  var outData = [];
+  for (var ci = 0; ci < ch; ci++) {
+    var chData = new Float32Array(len);
+    var orig = buffer.getChannelData(ci);
+    // High-pass filter (remove rumble < 80Hz)
+    var hp = 0;
+    for (var si = 0; si < len; si++) {
+      hp += 0.99 * hp + 0.01 * orig[si];
+      chData[si] = orig[si] - hp;
+    }
+    // Soft noise gate (-40dB threshold)
+    var gateThresh = 0.01;
+    for (var si2 = 0; si2 < len; si2++) {
+      if (Math.abs(chData[si2]) < gateThresh) chData[si2] = 0;
+    }
+    // Normalize peak to 0.95
+    var peak2 = 0.0001;
+    for (var si3 = 0; si3 < len; si3++) { var a = Math.abs(chData[si3]); if (a > peak2) peak2 = a; }
+    var gain = 0.95 / peak2;
+    for (var si4 = 0; si4 < len; si4++) chData[si4] *= gain;
+    outData.push(chData);
+  }
+  try {
+    var ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(ch, len, sr);
+    var src = ctx.createBufferSource();
+    var buf = ctx.createBuffer(ch, len, sr);
+    for (var ci2 = 0; ci2 < ch; ci2++) buf.copyToChannel(outData[ci2], ci2);
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    return buf;
+  } catch(e) { return buffer; }
+}
+
+/* ===== FREE TOOL: Word Pattern Analyzer ===== */
+function analyzeWordPatterns() {
+  var allText = '';
+  for (var ui = 0; ui < S.utterances.length; ui++) allText += ' ' + (S.utterances[ui].text || '');
+  var words = allText.toLowerCase().match(/[a-z]+/g) || [];
+  var freq = {};
+  for (var wi = 0; wi < words.length; wi++) {
+    var w = words[wi];
+    if (w.length > 2) freq[w] = (freq[w] || 0) + 1;
+  }
+  var sorted = Object.keys(freq).sort(function(a, b) { return freq[b] - freq[a]; });
+  var totalWords = words.length;
+  S.wordAnalysis = {
+    totalWords: totalWords,
+    uniqueWords: Object.keys(freq).length,
+    topWords: sorted.slice(0, 10),
+    topFreq: sorted.slice(0, 10).map(function(w) { return freq[w]; }),
+    repetitionScore: sorted.length > 0 && totalWords > 0
+      ? Math.max(0, 100 - (freq[sorted[0]] / totalWords) * 200)
+      : 100,
+    vocabRichness: totalWords > 0 ? Math.round(Object.keys(freq).length / totalWords * 100) : 0
+  };
+}
+
+/* ===== FREE TOOL: Turn-taking Analyzer ===== */
+function analyzeTurnTaking() {
+  var utts = S.utterances;
+  if (utts.length < 2) { S.turnAnalysis = { totalSwitches: 0, avgGap: 0, rapidFire: 0, score: 100 }; return; }
+  var switches = 0;
+  var gaps = [];
+  var rapid = 0;
+  for (var ti = 1; ti < utts.length; ti++) {
+    if (utts[ti].speaker !== utts[ti-1].speaker) {
+      switches++;
+      var gap = (utts[ti].start || 0) - (utts[ti-1].end || utts[ti-1].start || 0);
+      gaps.push(gap);
+      if (gap < 500 && gap > -500) rapid++;
+    }
+  }
+  var avgGap = gaps.length > 0 ? gaps.reduce(function(a, g) { return a + g; }, 0) / gaps.length : 0;
+  var score = Math.max(0, Math.min(100,
+    (utts.length > 1 ? (switches / utts.length) * 50 : 50) +
+    (rapid > switches * 0.3 ? 20 : 10) +
+    (avgGap < 3000 ? 20 : avgGap < 6000 ? 10 : 0) +
+    20
+  ));
+  S.turnAnalysis = {
+    totalSwitches: switches,
+    avgGap: Math.round(avgGap),
+    rapidFire: rapid,
+    score: Math.round(score),
+    pace: avgGap < 1000 ? 'Fast paced' : avgGap < 3000 ? 'Natural flow' : avgGap < 6000 ? 'Slow' : 'Long pauses'
+  };
+}
+
+/* ===== FREE TOOL: Browser SpeechRecognition Fallback ===== */
+function hasSpeechRecognition() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition);
+}
+
+async function runBrowserSpeechRec(file) {
+  return new Promise(function(resolve, reject) {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { reject(new Error('SpeechRecognition not supported')); return; }
+    showToast('Using browser speech recognition (free, no API key needed)', 'info');
+    var ctx2 = new (window.AudioContext || window.webkitAudioContext)();
+    var reader = new FileReader();
+    reader.onload = async function(e) {
+      var buf = await ctx2.decodeAudioData(e.target.result);
+      analyzeAudio(buf);
+      calcPaceScore();
+      var recognizer = new SR();
+      recognizer.lang = document.getElementById('langSelect')?.value || 'en-US';
+      recognizer.continuous = true;
+      recognizer.interimResults = false;
+      var utts2 = [];
+      var lastTime = 0;
+      recognizer.onresult = function(event) {
+        for (var ri = event.resultIndex; ri < event.results.length; ri++) {
+          if (event.results[ri].isFinal) {
+            utts2.push({
+              speaker: utts2.length % 2 === 0 ? 'A' : 'B',
+              text: event.results[ri][0].transcript,
+              start: lastTime,
+              end: lastTime + 3000,
+              sentiment: 'NEUTRAL',
+              confidence: event.results[ri][0].confidence || 0.8
+            });
+            lastTime += 3000;
+          }
+        }
+      };
+      recognizer.onend = function() {
+        if (utts2.length === 0) utts2.push({ speaker: 'A', text: '(No speech detected)', start: 0, end: 30000, sentiment: 'NEUTRAL', confidence: 0.5 });
+        resolve({ utterances: utts2 });
+      };
+      recognizer.onerror = function(e) { reject(new Error('SpeechRecognition error: ' + e.error)); };
+      recognizer.start();
+      // Auto-stop after audio duration + 5s
+      setTimeout(function() { try { recognizer.stop(); } catch(e) {} }, (buf.duration * 1000) + 5000);
+    };
+    reader.onerror = function() { reject(new Error('Failed to read audio file')); };
+    reader.readAsArrayBuffer(file);
+  });
 }
 </script>
 </body>
