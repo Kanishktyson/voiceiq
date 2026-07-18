@@ -15,8 +15,8 @@
 :root{--bg:#0d0221;--bg2:#16032e;--card:rgba(22,3,46,0.75);--blue:#7c3aed;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--purple:#a78bfa;--cyan:#06b6d4;--text:#f1f5f9;--text2:#94a3b8;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.5);--glow:0 0 30px rgba(124,58,237,0.15)}
 body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;position:relative}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.04) 0%,transparent 50%)}
-.screen{display:none;opacity:0;min-height:auto;padding:4px 8px}
-.screen.active{display:block;opacity:1}
+.screen{display:none;opacity:0;padding:4px 8px}
+.screen.active{display:block;opacity:1;min-height:100vh}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes glow{0%,100%{text-shadow:0 0 20px rgba(124,58,237,0.3)}50%{text-shadow:0 0 50px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.2)}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
@@ -30,10 +30,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 @keyframes fadeSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes cardEntrance{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-.container{max-width:1200px;margin:0 auto;padding:8px 20px}
+.container{max-width:1200px;margin:0 auto;padding:6px 16px}
 
 /* ===== GLASS CARD SYSTEM with 3D hover ===== */
-.card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;animation:cardEntrance .4s cubic-bezier(0.22,1,0.36,1) both;perspective:800px;position:relative;overflow:hidden}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:10px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),transparent);opacity:0.6;transition:opacity .3s}
 .card:hover::before{opacity:1}
 .card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.5)}
@@ -150,7 +150,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 .demo-badge{position:fixed;top:12px;right:12px;z-index:100;padding:6px 14px;border-radius:20px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--orange);font-size:11px;font-weight:700;letter-spacing:0.5px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 
 /* ===== SCORE RING with animated glow ===== */
-.score-ring{width:180px;height:180px;margin:0 auto;position:relative}
+.score-ring{width:150px;height:150px;margin:0 auto;position:relative}
 .score-ring svg{width:100%;height:100%;filter:drop-shadow(0 0 10px rgba(124,58,237,0.15))}
 .score-ring .score-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
 .score-ring .score-val .num{font-size:44px;font-weight:900;font-family:'Poppins',sans-serif;line-height:1;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 12px rgba(124,58,237,0.2))}
@@ -250,10 +250,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 .flex{display:flex}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}
 @media(max-width:768px){
   .container{padding:6px 14px}
-  .card{padding:18px}
+  .card{padding:12px}
   .chat-bubble{max-width:92%}
   .download-grid .btn{min-width:140px;font-size:12px;padding:12px 18px}
-  .score-ring{width:140px;height:140px}
+  .score-ring{width:120px;height:120px}
   .score-ring .score-val .num{font-size:34px}
   .summary-box{min-width:80px}
   .summary-box .big{font-size:20px}
@@ -262,7 +262,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 }
 @media(max-width:480px){
   .container{padding:4px 10px}
-  .card{padding:14px}
+  .card{padding:10px}
   .step-label{font-size:12px}
   .step-status{font-size:10px}
   .kpi-grid{grid-template-columns:repeat(2,1fr)}
@@ -289,7 +289,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 
 <!-- SCREEN 1: HOME -->
 <div id="screen1" class="screen gradient-bg active">
-<div class="container text-center" style="padding-top:24px">
+<div class="container text-center">
 <h1 class="glow-text">VoiceIQ</h1>
 <p class="subtitle">AI Call Analysis &bull; Quality Scoring &bull; Reports</p>
 <p style="margin:8px 0 16px;font-size:13px;color:var(--text2)"><i class="fas fa-check-circle" style="color:var(--green)"></i> Trusted by 500+ support teams &nbsp;|&nbsp; <i class="fas fa-chart-line" style="color:var(--blue)"></i> 10,000+ calls analyzed</p>
