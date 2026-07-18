@@ -5,3 +5,8 @@ __pycache__/
 *.pyo
 .DS_Store
 *.log
+
+node_modules/
+package-lock.json
+package.json
+*.js
