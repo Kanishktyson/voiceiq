@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#3d2a5e transparent}
@@ -18,8 +17,8 @@ body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.04) 0%,transparent 50%);animation:bgShift 12s ease-in-out infinite alternate}
 @keyframes bgShift{0%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}100%{opacity:0.6;transform:scale(1)}}
 body.intro-active{overflow:hidden;position:fixed;width:100%}
-.screen{display:none;opacity:0;transition:opacity .4s ease,transform .4s ease;min-height:auto;padding:20px 16px;transform:translateY(12px)}
-.screen.active{display:block;opacity:1;transform:translateY(0)}
+.screen{display:none;opacity:0;min-height:auto;padding:4px 8px}
+.screen.active{display:block;opacity:1}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes glow{0%,100%{text-shadow:0 0 20px rgba(124,58,237,0.3)}50%{text-shadow:0 0 50px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.2)}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
@@ -38,7 +37,7 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 @keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes iconPulse{0%,100%{transform:scale(1);opacity:0.9}50%{transform:scale(1.08);opacity:1}}
 @keyframes cardEntrance{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-.container{max-width:1200px;margin:0 auto;padding:16px 24px}
+.container{max-width:1200px;margin:0 auto;padding:8px 20px}
 
 /* ===== GLASS CARD SYSTEM with 3D hover ===== */
 .card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;animation:cardEntrance .4s cubic-bezier(0.22,1,0.36,1) both;perspective:800px;position:relative;overflow:hidden}
@@ -257,7 +256,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 .mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
 .flex{display:flex}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}
 @media(max-width:768px){
-  .container{padding:12px 16px}
+  .container{padding:6px 14px}
   .card{padding:18px}
   .chat-bubble{max-width:92%}
   .download-grid .btn{min-width:140px;font-size:12px;padding:12px 18px}
@@ -269,7 +268,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
   .nav-arrows .btn{max-width:none}
 }
 @media(max-width:480px){
-  .container{padding:8px 12px}
+  .container{padding:4px 10px}
   .card{padding:14px}
   .step-label{font-size:12px}
   .step-status{font-size:10px}
@@ -277,7 +276,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 }
 @media print{
   body{background:#fff!important}
-  .screen{display:block!important;opacity:1!important;transform:none!important;padding:0!important;min-height:auto!important}
+  .screen{display:block!important;opacity:1!important;padding:0!important;min-height:auto!important}
   .card{border:1px solid #ddd!important;box-shadow:none!important;backdrop-filter:none!important;break-inside:avoid;padding:16px!important}
   .nav-bar,.nav-dots,.nav-arrows,.btn,.upload-zone,.audio-preview,#demoBadge,#toast{display:none!important}
   *{color:#000!important;-webkit-text-fill-color:#000!important}
@@ -563,7 +562,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div class="card" style="text-align:center">
 <div class="card-title justify-center"><i class="fas fa-download" style="color:var(--blue)"></i> Export Reports</div>
 <div class="download-grid">
-<button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF Report (Print)</button>
+<button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF Report</button>
 <button class="btn btn-success" onclick="downloadExcel()"><i class="fas fa-file-excel"></i> Excel Report</button>
 <button class="btn btn-outline" onclick="downloadCSV()"><i class="fas fa-file-csv"></i> CSV Export</button>
 <button class="btn btn-outline" onclick="copyTranscript()"><i class="fas fa-copy"></i> Copy Transcript</button>
@@ -1982,63 +1981,54 @@ function renderRecommendations() {
 function downloadPDF() {
   if (!S.scores) { showToast('Analyze a call first', 'error'); return; }
   try {
-    var { jsPDF } = window.jspdf;
-    var doc = new jsPDF();
-    var s = S.scores, cd = S.callData || {};
-    doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.text('VoiceIQ Call Report', 20, 25);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text('Generated: ' + new Date().toLocaleString(), 20, 33);
-    doc.setDrawColor(124,58,237); doc.setLineWidth(0.5); doc.line(20, 38, 190, 38);
-    var y = 48;
-    var addLine = function(k,v) {
-      if (y > 275) { doc.addPage(); y = 25; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(k + ':', 20, y);
-      doc.setFont('helvetica','normal'); doc.text(String(v), 80, y); y += 7;
-    };
-    addLine('Overall Score', s.overall + '% (' + s.grade + ')');
-    addLine('Call Duration', cd.duration || 'N/A');
-    addLine('Total Utts', cd.totalUtts || 'N/A');
-    addLine('Agent Turns', cd.agentUtts || 'N/A');
-    addLine('Customer Turns', cd.custUtts || 'N/A');
-    addLine('Avg Response', (cd.avgResponseTime||'N/A') + 's');
-    y += 3;
-    doc.setDrawColor(200,200,200); doc.line(20, y, 190, y); y += 8;
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Scores', 20, y); y += 8;
-    var metrics = [
-      ['Empathy', s.empathy], ['Tone', s.tone], ['Resolution', s.resolution],
-      ['Negativity', s.negativity], ['Balance', s.balance], ['Interruptions', s.interrupt],
-      ['Pace', s.pace], ['Turn-taking', s.turn], ['Keywords', s.keywords],
-      ['Listening', s.listening||50], ['Q Ratio', s.qratio||75], ['Hedging', s.hedging||75],
-      ['Echo', s.echo||75]
-    ];
-    for (var mi=0; mi<metrics.length; mi++) {
-      if (y > 270) { doc.addPage(); y = 25; }
-      doc.setFontSize(9); doc.setFont('helvetica','normal');
-      doc.text(metrics[mi][0], 25, y);
-      doc.setFont('helvetica','bold');
-      doc.text(metrics[mi][1] + '%', 100, y);
-      // draw bar
-      doc.setFillColor(230,230,230); doc.rect(120, y-3, 60, 4, 'F');
-      doc.setFillColor(124,58,237); doc.rect(120, y-3, Math.min(60, metrics[mi][1]*0.6), 4, 'F');
-      y += 8;
+    var s=S.scores, cd=S.callData||{}, now=new Date();
+    var esc=function(t){return String(t).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');};
+    var pad=function(n){return('0000000000'+n).slice(-10);};
+    var lines=[], y=740;
+    var add=function(t,bold,sz){lines.push({text:t,bold:bold||false,size:sz||10,y:y});y-=bold?24:16;};
+    add('VoiceIQ \u2014 Call Analysis Report',true,20);
+    add('Generated: '+now.toLocaleString(),false,9); y-=4;
+    add('Overall Score: '+s.overall+'% ('+s.grade+')',true,13);
+    add('Duration: '+(cd.duration||'N/A')+'  |  Agent: '+(cd.agentUtts||'N/A')+'  |  Customer: '+(cd.custUtts||'N/A'),false,9);
+    y-=8;
+    var m=[['Empathy',s.empathy],['Tone',s.tone],['Resolution',s.resolution],['Negativity',s.negativity],['Balance',s.balance],['Interruptions',s.interrupt],['Pace',s.pace],['Turn-taking',s.turn],['Keywords',s.keywords],['Listening',s.listening||50],['Q Ratio',s.qratio||75],['Hedging',s.hedging||75],['Echo',s.echo||75]];
+    for(var i=0;i<m.length;i++){
+      if(y<80) break;
+      add(m[i][0]+'  '+m[i][1]+'%  ['+new Array(Math.round(m[i][1]/5)+1).join('|')+new Array(21-Math.round(m[i][1]/5)).join('.')+']',false,8);
     }
-    // add radar chart if canvas exists
-    try {
-      var rCanvas = document.getElementById('radarChart');
-      if (rCanvas) {
-        if (s && s.all) renderRadarChart('radarChart', [s.empathy,s.tone,s.resolution,s.negativity,s.balance,s.interrupt,s.pace,s.turn,s.keywords,s.listening||50,s.qratio||75,s.hedging||75,s.echo||75], s.labels);
-        var img = rCanvas.toDataURL('image/jpeg', 0.9);
-        doc.addPage();
-        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Performance Radar', 20, 25);
-        doc.addImage(img, 'JPEG', 40, 35, 130, 130);
+    if(s.recommendations&&s.recommendations.length){
+      y-=4; add('RECOMMENDATIONS',true,11);
+      for(var ri=0;ri<Math.min(s.recommendations.length,6);ri++){
+        if(y<60) break;
+        add('\u2022 '+esc(s.recommendations[ri]),false,8);
       }
-    } catch(e) {}
-    doc.save('VoiceIQ_Report.pdf');
-    showToast('PDF downloaded!', 'success');
-  } catch(e) {
-    console.error(e);
-    showToast('PDF failed — trying Print', 'error');
-    window.print();
-  }
+    }
+    function pdfStr(){
+      var content='';
+      for(var i=0;i<lines.length;i++){
+        var l=lines[i];
+        content+='BT /F'+(l.bold?1:2)+' '+l.size+' Tf 50 '+l.y+' Td ('+esc(l.text)+') Tj ET\n';
+      }
+      var h='%PDF-1.4\n', o1='1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n', o2='2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n';
+      var o3='3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R/F2 6 0 R>>>>>>endobj\n';
+      var o4='4 0 obj<</Length '+content.length+'>>stream\n'+content+'endstream\nendobj\n';
+      var o5='5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold>>endobj\n';
+      var o6='6 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n';
+      var doc='', off; doc+=h; off=doc.length; doc+=o1; var o1s=off; off=doc.length;
+      doc+=o2; var o2s=off; off=doc.length; doc+=o3; var o3s=off; off=doc.length;
+      doc+=o4; var o4s=off; off=doc.length; doc+=o5; var o5s=off; off=doc.length;
+      doc+=o6; var o6s=off; off=doc.length; var xo=off;
+      doc+='xref\n0 7\n0000000000 65535 f \n'+pad(o1s)+' 00000 n \n'+pad(o2s)+' 00000 n \n'+pad(o3s)+' 00000 n \n'+pad(o4s)+' 00000 n \n'+pad(o5s)+' 00000 n \n'+pad(o6s)+' 00000 n \n';
+      doc+='trailer<</Size 7/Root 1 0 R>>\nstartxref\n'+xo+'\n%%EOF';
+      return doc;
+    }
+    var blob=new Blob([pdfStr()],{type:'application/pdf'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='VoiceIQ_Report.pdf';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);
+    showToast('PDF downloaded!','success');
+  } catch(e){ console.error(e); showToast('PDF failed \u2014 use Print','error'); window.print(); }
 }
 
 /* ========================= EXCEL ========================= */
