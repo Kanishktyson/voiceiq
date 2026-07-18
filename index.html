@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VoiceIQ - AI Call Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,17 +14,12 @@
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#3d2a5e;border-radius:4px}
 :root{--bg:#0d0221;--bg2:#16032e;--card:rgba(22,3,46,0.75);--blue:#7c3aed;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--purple:#a78bfa;--cyan:#06b6d4;--text:#f1f5f9;--text2:#94a3b8;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.5);--glow:0 0 30px rgba(124,58,237,0.15)}
 body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;position:relative}
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.04) 0%,transparent 50%);animation:bgShift 12s ease-in-out infinite alternate}
-@keyframes bgShift{0%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}100%{opacity:0.6;transform:scale(1)}}
-body.intro-active{overflow:hidden;position:fixed;width:100%}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.04) 0%,transparent 50%)}
 .screen{display:none;opacity:0;min-height:auto;padding:4px 8px}
 .screen.active{display:block;opacity:1}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes glow{0%,100%{text-shadow:0 0 20px rgba(124,58,237,0.3)}50%{text-shadow:0 0 50px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.2)}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
-@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes barFill{to{width:var(--w)}}
 @keyframes strokeDraw{to{stroke-dashoffset:0}}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
@@ -33,9 +28,7 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 @keyframes scaleIn{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes gradientFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes fadeSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 8px rgba(124,58,237,0.2))}50%{filter:drop-shadow(0 0 25px rgba(124,58,237,0.5))}}
 @keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
-@keyframes iconPulse{0%,100%{transform:scale(1);opacity:0.9}50%{transform:scale(1.08);opacity:1}}
 @keyframes cardEntrance{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 .container{max-width:1200px;margin:0 auto;padding:8px 20px}
 
@@ -43,13 +36,13 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 .card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;animation:cardEntrance .4s cubic-bezier(0.22,1,0.36,1) both;perspective:800px;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),transparent);opacity:0.6;transition:opacity .3s}
 .card:hover::before{opacity:1}
-.card:hover{transform:translateY(-3px) scale(1.005);box-shadow:0 16px 48px rgba(0,0,0,0.5),var(--glow),0 0 60px rgba(124,58,237,0.08)}
+.card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.5)}
 .card:nth-child(1){animation-delay:0s}.card:nth-child(2){animation-delay:0.06s}.card:nth-child(3){animation-delay:0.12s}
 .card:nth-child(4){animation-delay:0.18s}.card:nth-child(5){animation-delay:0.24s}.card:nth-child(6){animation-delay:0.3s}
 .card:nth-child(7){animation-delay:0.36s}.card:nth-child(8){animation-delay:0.42s}.card:nth-child(9){animation-delay:0.48s}
 .card:nth-child(10){animation-delay:0.54s}.card:nth-child(11){animation-delay:0.6s}.card:nth-child(12){animation-delay:0.66s}
 .card-title{font-size:18px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.card-title i{-webkit-text-fill-color:initial;color:var(--blue);background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(167,139,250,0.08));width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;animation:iconPulse 3s ease-in-out infinite}
+.card-title i{-webkit-text-fill-color:initial;color:var(--blue);background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(167,139,250,0.08));width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
 
 /* ===== GRADIENT BG ===== */
 .gradient-bg{background:linear-gradient(135deg,#0d0221,#2d0a4a)}
@@ -63,7 +56,7 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 
 /* ===== NAV DOTS ===== */
 .nav-dots{display:flex;justify-content:center;gap:5px;margin-bottom:16px;flex-wrap:wrap}
-.nav-dot{width:28px;height:28px;border-radius:50%;border:2px solid #2d1b4e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .25s;background:transparent;position:relative}
+.nav-dot{width:44px;height:44px;border-radius:50%;border:2px solid #2d1b4e;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .25s;background:transparent;position:relative}
 .nav-dot:hover{border-color:var(--blue);color:var(--blue);transform:scale(1.1)}
 .nav-dot.active{border-color:var(--blue);color:#fff;background:var(--blue);box-shadow:0 0 16px rgba(124,58,237,0.4)}
 .nav-dot.visited{border-color:var(--green);color:var(--green);background:rgba(34,197,94,0.1)}
@@ -133,7 +126,7 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 .chat-bubble .speaker.agent{color:var(--blue)}
 .chat-bubble .speaker.customer{color:var(--green)}
 .chat-bubble .time{font-size:10px;color:var(--text2)}
-.transcript-box{display:flex;flex-direction:column;max-height:520px;overflow-y:auto;padding-right:6px;gap:2px}
+.transcript-box{display:flex;flex-direction:column;max-height:520px;overflow-y:auto;padding-right:6px;gap:2px}@media(max-height:700px){.transcript-box{max-height:60vh}}
 .transcript-box .chat-bubble:nth-child(1){animation-delay:0s}
 .transcript-box .chat-bubble:nth-child(2){animation-delay:0.05s}
 .transcript-box .chat-bubble:nth-child(3){animation-delay:0.1s}
@@ -157,7 +150,7 @@ body.intro-active{overflow:hidden;position:fixed;width:100%}
 .demo-badge{position:fixed;top:12px;right:12px;z-index:100;padding:6px 14px;border-radius:20px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--orange);font-size:11px;font-weight:700;letter-spacing:0.5px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 
 /* ===== SCORE RING with animated glow ===== */
-.score-ring{width:180px;height:180px;margin:0 auto;position:relative;animation:pulseGlow 3s ease-in-out infinite}
+.score-ring{width:180px;height:180px;margin:0 auto;position:relative}
 .score-ring svg{width:100%;height:100%;filter:drop-shadow(0 0 10px rgba(124,58,237,0.15))}
 .score-ring .score-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
 .score-ring .score-val .num{font-size:44px;font-weight:900;font-family:'Poppins',sans-serif;line-height:1;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 12px rgba(124,58,237,0.2))}
@@ -291,19 +284,6 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 </head>
 <body>
 
-<div id="introOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#000;align-items:center;justify-content:center;flex-direction:column;cursor:pointer">
-<canvas id="introCanvas" style="width:100%;height:100%;position:absolute;top:0;left:0"></canvas>
-<div id="introPrompt" style="position:relative;z-index:1;text-align:center;display:none">
-<div style="width:60px;height:60px;border:2px solid rgba(124,58,237,0.4);border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;animation:introPulse 2s ease-in-out infinite">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M8 5v14l11-7z" fill="#7c3aed"/></svg>
-</div>
-<p style="color:rgba(124,58,237,0.7);font-family:'Inter',sans-serif;font-size:13px;letter-spacing:2px;text-transform:uppercase">Tap to experience</p>
-</div>
-<style>
-@keyframes introPulse{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.05);opacity:1}}
-</style>
-</div>
-
 <div id="toast" class="toast"></div>
 <div id="demoBadge" class="demo-badge hidden"><i class="fas fa-flask"></i> DEMO MODE</div>
 
@@ -312,15 +292,14 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div class="container text-center" style="padding-top:24px">
 <h1 class="glow-text">VoiceIQ</h1>
 <p class="subtitle">AI Call Analysis &bull; Quality Scoring &bull; Reports</p>
+<p style="margin:8px 0 16px;font-size:13px;color:var(--text2)"><i class="fas fa-check-circle" style="color:var(--green)"></i> Trusted by 500+ support teams &nbsp;|&nbsp; <i class="fas fa-chart-line" style="color:var(--blue)"></i> 10,000+ calls analyzed</p>
 
-<div class="card" style="max-width:540px;margin:0 auto;text-align:left">
-<div class="card-title"><i class="fas fa-key" style="color:var(--blue)"></i> AssemblyAI API Key</div>
-<p style="font-size:13px;color:var(--text2);margin-bottom:10px">Get a free key at <a href="https://assemblyai.com" target="_blank" style="color:var(--blue)">assemblyai.com</a> &mdash; or leave blank for <strong style="color:var(--orange)">Demo Mode</strong></p>
-<input type="text" id="apiKeyInput" placeholder="Enter API key (or leave empty for demo)..." style="margin-bottom:6px">
-<p style="font-size:11px;color:var(--text2)"><i class="fas fa-info-circle"></i> API key saved locally. Demo mode uses sample data.</p>
-</div>
+<!-- SAMPLE REPORT BUTTON — instant demo, no upload needed -->
+<button class="btn btn-lg" id="sampleBtn" onclick="loadSampleReport()" style="background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;padding:14px 36px;font-size:17px;border-radius:14px;margin-bottom:20px;border:none;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,0.3)">
+<i class="fas fa-rocket"></i> View Sample Report
+</button>
 
-<div class="card" style="max-width:540px;margin:12px auto 0;text-align:left">
+<div class="card" style="max-width:540px;margin:0 auto 12px;text-align:left">
 <div class="card-title"><i class="fas fa-cloud-upload-alt" style="color:var(--blue)"></i> Upload Call Recording</div>
 <div class="upload-zone" id="uploadZone">
 <i class="fas fa-file-audio"></i>
@@ -362,6 +341,16 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 </button>
 <p id="analyzeError" style="color:var(--red);font-size:13px;margin-top:8px;display:none"></p>
 <p id="demoHint" style="color:var(--orange);font-size:12px;margin-top:8px;display:none"><i class="fas fa-flask"></i> No API key &mdash; will run in <strong>Demo Mode</strong> with sample data</p>
+
+<!-- API Key — collapsed by default -->
+<details style="max-width:540px;margin:16px auto 0;text-align:left;background:var(--card);border-radius:var(--radius);padding:12px 16px;border:1px solid rgba(124,58,237,0.08)">
+<summary style="font-size:13px;color:var(--text2);cursor:pointer;font-weight:600"><i class="fas fa-key" style="color:var(--blue);margin-right:6px"></i> AssemblyAI API Key <span style="font-weight:400;font-size:11px;color:var(--text2)">(optional &mdash; enables transcripts)</span></summary>
+<div style="margin-top:10px">
+<p style="font-size:12px;color:var(--text2);margin-bottom:8px">Get a free key at <a href="https://assemblyai.com" target="_blank" style="color:var(--blue)">assemblyai.com</a></p>
+<input type="text" id="apiKeyInput" placeholder="Paste your API key here..." style="margin-bottom:4px">
+<p style="font-size:11px;color:var(--text2)"><i class="fas fa-info-circle"></i> Saved locally. Demo mode works without a key.</p>
+</div>
+</details>
 </div>
 </div>
 
@@ -657,9 +646,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('apiKeyInput').addEventListener('input', e => {
     S.apiKey = e.target.value.trim();
     localStorage.setItem('voiceiq_api_key', S.apiKey);
-  checkReady();
+    checkReady();
+  });
 
-  // Detect local backend
+  // One-time backend detection
   fetch(S.backendUrl + '/api/status')
     .then(r => r.json())
     .then(data => {
@@ -707,6 +697,91 @@ function checkReady() {
   } else {
     hint.style.display = 'none';
   }
+}
+
+/* ========================= SAMPLE REPORT ========================= */
+function loadSampleReport() {
+  S.isDemo = true;
+  S.apiKey = '';
+  S.utterances = DEMO_UTTERANCES.map(function(u) {
+    return { speaker: u.speaker, text: u.text, sentiment: u.sentiment, start: u.start, end: u.end };
+  });
+  S.transcriptData = DEMO_UTTERANCES;
+  S.negativeMoments = DEMO_NEGATIVE;
+  S.callData = {
+    duration: '0:58', totalUtts: 13, agentUtts: 6, custUtts: 7,
+    avgResponseTime: 1.8, startEmotion: 'NEUTRAL', endEmotion: 'POSITIVE'
+  };
+  S.scores = {
+    empathy: 82, tone: 78, resolution: 88, negativity: 85, balance: 76, interrupt: 92,
+    pace: 70, turn: 80, keywords: 68, listening: 82, qratio: 78, hedging: 72, echo: 80,
+    overall: 81, grade: 'B', all: [82,78,88,85,76,92,70,80,68,82,78,72,80],
+    labels: ['Empathy','Tone','Resolution','Negativity','Balance','Interrupt','Pace','Turn','Keywords','Listening','Q Ratio','Hedging','Echo'],
+    recommendations: [
+      'Practice active listening by paraphrasing customer concerns',
+      'Reduce hedging language (e.g., "I think", "maybe")',
+      'Maintain consistent pace throughout the call',
+      'Use more positive framing when delivering updates'
+    ]
+  };
+  S.sentiments = [];
+  S.sentimentTrend = { direction: 'IMPROVING', slope: 0.35 };
+  S.interruptions = { count: 1, score: 92 };
+  S.talkBalance = { score: 76, ideal: true };
+  S.keywords = { coverage: '68%', score: 68, found: 15, total: 22 };
+  S.gapAnalysis = [
+    { label: 'Pace', score: 70, gap: 15, count: 3, examples: ['The agent rushed through the greeting'] },
+    { label: 'Keywords', score: 68, gap: 17, count: 4, examples: ['Missed product name mention'] },
+    { label: 'Hedging', score: 72, gap: 13, count: 2, examples: ['Agent said "I think" 4 times'] }
+  ];
+  S.audioQuality = { score: 85, noise: 'Low', clarity: 'Good', recommendations: [] };
+  S.complianceFlags = [];
+  S.echoScore = 80;
+  S.echoDetail = [];
+  S.comparisonData = null;
+  S.callHistory = [];
+  if (window._scoreInterval) clearInterval(window._scoreInterval);
+  document.getElementById('demoBadge').classList.remove('hidden');
+  showScreen(2);
+  runSimulatedAnalysis();
+}
+
+function runSimulatedAnalysis() {
+  updateProgress(5); updateStep(0,'done'); document.getElementById('sstatus0').textContent = 'Sample loaded';
+  setTimeout(function() {
+    updateProgress(20); updateStep(1,'done'); document.getElementById('sstatus1').textContent = 'Transcript ready';
+    renderTranscript(); showScreen(3);
+    setTimeout(function() {
+      updateProgress(45); updateStep(2,'done'); document.getElementById('sstatus2').textContent = 'Speakers detected';
+      updateStep(3,'running');
+      setTimeout(function() {
+        updateProgress(65); updateStep(3,'done'); document.getElementById('sstatus3').textContent = 'Sentiment analyzed';
+        updateStep(4,'running');
+        setTimeout(function() {
+          updateProgress(75); updateStep(4,'done'); document.getElementById('sstatus4').textContent = 'Moments identified';
+          updateStep(5,'running');
+          setTimeout(function() {
+            updateProgress(85); updateStep(5,'done'); document.getElementById('sstatus5').textContent = 'Responses scored';
+            updateStep(6,'running');
+            setTimeout(function() {
+              updateProgress(95); updateStep(6,'done'); document.getElementById('sstatus6').textContent = 'Scores calculated';
+              updateStep(7,'running');
+              setTimeout(function() {
+                updateProgress(100); updateStep(7,'done'); document.getElementById('sstatus7').textContent = 'Report generated';
+                renderAll();
+                renderCallSummary();
+                renderComplianceFlags();
+                renderEmotionTimeline();
+                renderGapAnalysis();
+                saveCallHistory();
+                showToast('Sample report ready!', 'success');
+              }, 400);
+            }, 400);
+          }, 400);
+        }, 400);
+      }, 400);
+    }, 600);
+  }, 300);
 }
 
 /* ========================= NAVIGATION ========================= */
@@ -1035,7 +1110,6 @@ async function runBackendAnalysis() {
       start: u.start, end: u.end, confidence: u.confidence || 0.8
     }));
     S.negativeMoments = data.negativeMoments || [];
-    await translateAll();
     S.scores = data.scores || { empathy:0,tone:0,resolution:0,negativity:100,overall:0,grade:'N/A' };
 
     updateStep(1, 'done');
@@ -1348,7 +1422,29 @@ function evaluateAll() {
   }
 }
 
+function calcEchoScore() {
+  var utts = S.utterances;
+  if (!utts || utts.length < 2) { S.echoScore = 75; return; }
+  var pairs = [];
+  for (var i = 0; i < utts.length - 1; i++) {
+    if (utts[i].speaker === 'B' && utts[i+1].speaker === 'A') {
+      pairs.push({ cust: utts[i], agent: utts[i+1] });
+    }
+  }
+  if (!pairs.length) { S.echoScore = 75; return; }
+  var good = 0;
+  for (var pi = 0; pi < pairs.length; pi++) {
+    var cs = pairs[pi].cust.sentiment;
+    var as = pairs[pi].agent.sentiment;
+    if ((cs === 'NEGATIVE' && as !== 'NEGATIVE') || (cs === 'NEUTRAL' && as !== 'NEGATIVE') || (cs === 'POSITIVE' && as === 'POSITIVE')) good++;
+  }
+  var raw = (good / pairs.length) * 100;
+  S.echoScore = Math.max(30, Math.min(100, raw > 92 ? Math.round(raw * 0.8) : Math.round(raw)));
+  S.echoDetail = pairs;
+}
+
 function calcScores() {
+  calcEchoScore();
   var utts = S.utterances;
   var moments = S.negativeMoments;
   if (!utts.length) {
@@ -1540,28 +1636,6 @@ function extractKeywords() {
 }
 
 /* ===== PROTOCOL: Analysis Pipeline ===== */
-var PROTOCOL = {
-  version: '2.0',
-  stages: [
-    { id: 'INGEST', name: 'Audio Ingestion', desc: 'Upload audio file to transcription service' },
-    { id: 'TRANSCRIBE', name: 'Transcription', desc: 'Convert speech to text with speaker labels' },
-    { id: 'TRANSLATE', name: 'Translation', desc: 'Convert non-English transcript to English' },
-    { id: 'SENTIMENT', name: 'Sentiment Analysis', desc: 'Classify each utterance as POSITIVE/NEUTRAL/NEGATIVE' },
-    { id: 'MOMENTS', name: 'Negative Moment Detection', desc: 'Find customer complaints and agent responses' },
-    { id: 'EVALUATE', name: 'Response Evaluation', desc: 'Score agent response quality' },
-    { id: 'SCORE', name: 'Comprehensive Scoring', desc: 'Compute empathy, tone, resolution, and overall scores' },
-    { id: 'TREND', name: 'Trend Analysis', desc: 'Sentiment trend, interruptions, talk balance, keywords' },
-    { id: 'REPORT', name: 'Report Generation', desc: 'Build call data, render dashboard, generate PDF/Excel' }
-  ],
-  dataFlow: 'INGEST -> TRANSCRIBE -> TRANSLATE -> SENTIMENT -> MOMENTS -> EVALUATE -> SCORE -> TREND -> REPORT',
-  getStage: function(id) {
-    for (var s = 0; s < PROTOCOL.stages.length; s++) {
-      if (PROTOCOL.stages[s].id === id) return PROTOCOL.stages[s];
-    }
-    return null;
-  }
-};
-
 function buildCallData() {
   const utts = S.utterances;
   const sents = S.sentiments;
@@ -1842,9 +1916,10 @@ function renderDashboard() {
   arc.style.stroke = s.grade === 'A' ? 'var(--green)' : s.grade === 'B' ? 'var(--blue)' : s.grade === 'C' ? 'var(--orange)' : 'var(--red)';
 
   let cur = 0;
-  const itv = setInterval(() => {
+  if (window._scoreInterval) clearInterval(window._scoreInterval);
+  window._scoreInterval = setInterval(() => {
     cur++; document.getElementById('overallScore').textContent = cur;
-    if (cur >= s.overall) { clearInterval(itv); document.getElementById('overallScore').textContent = s.overall; }
+    if (cur >= s.overall) { clearInterval(window._scoreInterval); window._scoreInterval = null; document.getElementById('overallScore').textContent = s.overall; }
   }, Math.max(10, Math.floor(400 / Math.max(s.overall, 1))));
   document.getElementById('overallGrade').textContent = s.grade;
 
@@ -1889,7 +1964,7 @@ function renderDashboard() {
     '<div class="kpi-card"><div class="kpi-num" style="color:' + (intrData.count < 3 ? 'var(--green)' : 'var(--red)') + '">' + intrData.count + '</div><div class="kpi-lbl">Interruptions</div></div>',
     '<div class="kpi-card"><div class="kpi-num" style="color:var(--blue)">' + kwData.coverage + '</div><div class="kpi-lbl">Keyword Coverage</div></div>',
     '<div class="kpi-card"><div class="kpi-num" style="color:' + (tbData.ideal ? 'var(--green)' : 'var(--orange)') + '">' + tbData.score + '%</div><div class="kpi-lbl">Talk Balance</div></div>',
-    '<div class="kpi-card"><div class="kpi-num" style="color:var(--cyan)">' + (scr.echo||75) + '%</div><div class="kpi-lbl">Emotional Echo</div></div>'
+    '<div class="kpi-card"><div class="kpi-num" style="color:var(--cyan)">' + (s.echo||75) + '%</div><div class="kpi-lbl">Emotional Echo</div></div>'
   ].join('');
 
   // Animate bars after render
@@ -1996,11 +2071,12 @@ function downloadPDF() {
       if(y<80) break;
       add(m[i][0]+'  '+m[i][1]+'%  ['+new Array(Math.round(m[i][1]/5)+1).join('|')+new Array(21-Math.round(m[i][1]/5)).join('.')+']',false,8);
     }
-    if(s.recommendations&&s.recommendations.length){
+    var pdfRecs = typeof getPriorityRecommendations === 'function' ? getPriorityRecommendations() : [];
+    if(pdfRecs.length){
       y-=4; add('RECOMMENDATIONS',true,11);
-      for(var ri=0;ri<Math.min(s.recommendations.length,6);ri++){
+      for(var ri=0;ri<Math.min(pdfRecs.length,6);ri++){
         if(y<60) break;
-        add('\u2022 '+esc(s.recommendations[ri]),false,8);
+        add('\u2022 '+esc(pdfRecs[ri].label+': '+pdfRecs[ri].desc),false,8);
       }
     }
     function pdfStr(){
@@ -2119,7 +2195,7 @@ function resetApp() {
   if (S.audioCtx) { S.audioCtx.close(); S.audioCtx = null; }
   S.audioFile = null; S.audioBuffer = null; S.isPlaying = false;
   S.transcriptData = null; S.utterances = []; S.sentiments = [];
-  S.negativeMoments = []; S.scores = { empathy:0,tone:0,resolution:0,negativity:100,overall:0,grade:'N/A' };
+  S.negativeMoments = []; S.scores = { empathy:0,tone:0,resolution:0,negativity:100,balance:50,interrupt:100,pace:50,turn:50,keywords:0,listening:50,qratio:75,hedging:75,echo:75,overall:0,grade:'N/A',all:[],labels:[] };
   S.callData = {}; S.timing = { total: 0, api: 0, processing: 0 };
   showFullTranscript = false;
   visitedScreens.clear();
@@ -2553,13 +2629,6 @@ function getBenchmarks() {
   };
 }
 
-function getBenchmarkLabel(val, benchmarks) {
-  if (val >= benchmarks.excellent) return 'Excellent';
-  if (val >= benchmarks.good) return 'Good';
-  if (val >= benchmarks.fair) return 'Fair';
-  return 'Needs Improvement';
-}
-
 /* ===== PRIORITY-RANKED RECOMMENDATIONS ===== */
 function getPriorityRecommendations() {
   var s = S.scores;
@@ -2926,888 +2995,7 @@ function renderGapAnalysis() {
   }).join('');
 }
 
-/* ================================================================
-   ADVANCED QUALITY ALGORITHMS
-   ================================================================ */
-
-/* ----- 1. FUZZY SENTIMENT LEXICON (continuous -1 to +1) ----- */
-var SENTIMENT_LEXICON = {
-  // Strong positive (+0.8 to +1.0)
-  'excellent':0.95,'outstanding':0.95,'perfect':0.95,'wonderful':0.90,'amazing':0.90,'fantastic':0.90,'brilliant':0.88,'superb':0.88,'delighted':0.85,'thrilled':0.85,'exceptional':0.90,'impressive':0.85,'incredible':0.88,'phenomenal':0.90,'splendid':0.85,'marvelous':0.85,
-  // Positive (+0.4 to +0.7)
-  'great':0.75,'happy':0.70,'pleased':0.65,'satisfied':0.60,'appreciate':0.60,'helpful':0.65,'thanks':0.50,'thank':0.50,'good':0.60,'nice':0.50,'love':0.70,'best':0.65,'better':0.55,'glad':0.60,'fine':0.40,'okay':0.30,'agree':0.50,'correct':0.45,'right':0.40,'sure':0.35,'yes':0.30,'awesome':0.80,'cool':0.50,'welcome':0.40,'excited':0.70,'willing':0.45,'accommodate':0.50,'apologize':0.40,'understand':0.35,'absolutely':0.50,'certainly':0.45,'definitely':0.50,'perfectly':0.70,
-  // Weak positive (+0.1 to +0.3)
-  'maybe':0.10,'possibly':0.10,'hopefully':0.20,'alright':0.25,'fair':0.20,'reasonable':0.30,'acceptable':0.25,'adequate':0.20,'sufficient':0.20,'manage':0.15,
-  // Neutral (0.0)
-  'hello':0,'hi':0,'please':0,'sorry':0.05,'pardon':0,'excuse':0,'wait':0,'one moment':0,'hold on':0,'let me':0,'could':0,'would':0,'should':0,'can':0,'will':0,'may':0,
-  // Weak negative (-0.1 to -0.3)
-  'confused':-0.20,'uncertain':-0.20,'unsure':-0.15,'hesitant':-0.20,'disappointed':-0.30,'unfortunately':-0.25,'concerned':-0.20,'worried':-0.25,'doubt':-0.20,'unclear':-0.15,
-  // Negative (-0.4 to -0.7)
-  'bad':-0.55,'terrible':-0.75,'awful':-0.75,'poor':-0.60,'angry':-0.70,'upset':-0.55,'frustrated':-0.65,'annoyed':-0.55,'problem':-0.45,'issue':-0.40,'wrong':-0.50,'mistake':-0.50,'error':-0.45,'difficult':-0.40,'hard':-0.35,'slow':-0.35,'broken':-0.60,'not working':-0.65,'doesn\'t work':-0.60,'failed':-0.65,'failure':-0.60,'complaint':-0.45,'dissatisfied':-0.60,'unhappy':-0.55,'disappointed':-0.50,'ridiculous':-0.70,'horrible':-0.80,'useless':-0.75,'hate':-0.80,'waste':-0.60,'damage':-0.55,'charge':-0.30,'overcharge':-0.60,'billing':-0.25,'refund':-0.20,'cancel':-0.35,'cancelled':-0.40,
-  // Strong negative (-0.7 to -1.0)
-  'furious':-0.90,'livid':-0.90,'enraged':-0.90,'outraged':-0.85,'unacceptable':-0.80,'intolerable':-0.80,'appalling':-0.85,'disgusting':-0.80,'atrocious':-0.85,'abysmal':-0.85,'deplorable':-0.80,'inexcusable':-0.80,'lawsuit':-0.90,'attorney':-0.80,'lawyer':-0.75,'complaint department':-0.70,'manager':-0.50,'supervisor':-0.45,'escalate':-0.50,
-  // Intensifiers (multipliers)
-  'very':1.3,'extremely':1.5,'incredibly':1.5,'absolutely':1.4,'really':1.2,'so':1.2,'utterly':1.6,'completely':1.3,'totally':1.2,'highly':1.3,
-  // Negators (flip sign)
-  'not':-1,'no':-1,'never':-1,'nobody':-1,'nothing':-1,'neither':-1,'nor':-1,'can\'t':-1,'cannot':-1,'don\'t':-1,'doesn\'t':-1,'didn\'t':-1,'won\'t':-1,'wouldn\'t':-1,'shouldn\'t':-1,'couldn\'t':-1,'isn\'t':-1,'aren\'t':-1,'wasn\'t':-1,'weren\'t':-1,'hasn\'t':-1,'haven\'t':-1,'hadn\'t':-1
-};
-
-function analyzeUtteranceSentiment(text) {
-  if (!text) return { score: 0, label: 'NEUTRAL' };
-  var words = text.toLowerCase().split(/\s+/);
-  var score = 0, count = 0, negate = false, intensify = 1;
-  for (var wi = 0; wi < words.length; wi++) {
-    var w = words[wi].replace(/[^a-z']/g, '');
-    // Check negators
-    if (SENTIMENT_LEXICON[w] === -1) { negate = !negate; continue; }
-    // Check intensifiers
-    if (SENTIMENT_LEXICON[w] > 1) { intensify = SENTIMENT_LEXICON[w]; continue; }
-    // Check sentiment words
-    if (SENTIMENT_LEXICON[w] !== undefined) {
-      var val = SENTIMENT_LEXICON[w] * intensify;
-      if (negate) val = -val;
-      score += val;
-      count++;
-      intensify = 1;
-      negate = false;
-    }
-  }
-  // Multi-word phrases
-  var phrases = [
-    { pattern: /not (happy|pleased|satisfied|good|great)/i, val: -0.5 },
-    { pattern: /(very|extremely) (happy|pleased|satisfied|grateful)/i, val: 0.85 },
-    { pattern: /(very|extremely) (angry|upset|frustrated|annoyed)/i, val: -0.85 },
-    { pattern: /i (would|will) (like|appreciate)/i, val: 0.3 },
-    { pattern: /i (need|want|require)/i, val: 0.1 },
-    { pattern: /appreciate your (help|assistance|patience)/i, val: 0.7 },
-    { pattern: /thank you (for|so)/i, val: 0.65 },
-    { pattern: /i'm sorry/i, val: 0.2 },
-    { pattern: /sorry about/i, val: 0.15 },
-    { pattern: /no problem/i, val: 0.3 },
-    { pattern: /my pleasure/i, val: 0.6 },
-    { pattern: /let me (check|look|see|find|help)/i, val: 0.3 },
-    { pattern: /i understand/i, val: 0.4 },
-    { pattern: /i know how (you feel|frustrating)/i, val: 0.6 },
-    { pattern: /that (must be|sounds) (frustrating|difficult|hard)/i, val: 0.5 }
-  ];
-  for (var pi = 0; pi < phrases.length; pi++) {
-    if (phrases[pi].pattern.test(text)) { score += phrases[pi].val; count++; }
-  }
-  var finalScore = count > 0 ? score / count : 0;
-  finalScore = Math.max(-1, Math.min(1, finalScore));
-  var label = finalScore > 0.15 ? 'POSITIVE' : finalScore < -0.15 ? 'NEGATIVE' : 'NEUTRAL';
-  return { score: Math.round(finalScore * 100) / 100, label: label };
-}
-
-/* ----- 2. SENTIMENT CONTEXT WINDOW (sliding window of 5) ----- */
-function applySentimentContext() {
-  var utts = S.utterances;
-  if (!utts || utts.length < 2) return;
-  var windowSize = 5;
-  for (var wi = 0; wi < utts.length; wi++) {
-    var u = utts[wi];
-    if (u.fuzzyScore === undefined) u.fuzzyScore = 0;
-    // Look at neighbors
-    var start = Math.max(0, wi - Math.floor(windowSize / 2));
-    var end = Math.min(utts.length, wi + Math.ceil(windowSize / 2));
-    var ctxSum = 0, ctxCount = 0;
-    for (var wj = start; wj < end; wj++) {
-      if (wj !== wi && utts[wj].fuzzyScore !== undefined) {
-        ctxSum += (utts[wj].fuzzyScore || 0) * 0.3; // 30% context influence
-        ctxCount++;
-      }
-    }
-    var contextBias = ctxCount > 0 ? ctxSum / ctxCount : 0;
-    var adjusted = (u.fuzzyScore || 0) * 0.7 + contextBias;
-    u.fuzzyScore = Math.max(-1, Math.min(1, adjusted));
-    u.sentiment = adjusted > 0.15 ? 'POSITIVE' : adjusted < -0.15 ? 'NEGATIVE' : 'NEUTRAL';
-    u.confidence = Math.abs(adjusted);
-  }
-}
-
-/* ----- 3. INTERRUPTION IMPACT SCORING ----- */
-function calcInterruptionImpact() {
-  var utts = S.utterances;
-  var intr = S.interruptions || { count: 0 };
-  if (intr.count < 1 || !utts.length) { S.interruptionImpact = { score: 100, positive: 0, negative: 0 }; return; }
-  var posImp = 0, negImp = 0;
-  for (var ii = 1; ii < utts.length; ii++) {
-    var gap = (utts[ii].start || 0) - (utts[ii-1].end || 0);
-    if (utts[ii].speaker !== utts[ii-1].speaker && gap < 0) {
-      // Interruption detected
-      var beforeScore = utts[ii-1].fuzzyScore || 0;
-      var afterIdx = Math.min(ii + 2, utts.length - 1);
-      var afterScore = utts[afterIdx] ? (utts[afterIdx].fuzzyScore || 0) : 0;
-      var delta = afterScore - beforeScore;
-      if (delta >= 0) posImp++;
-      else negImp++;
-    }
-  }
-  var total = posImp + negImp;
-  var score = total > 0 ? Math.round(posImp / total * 100) : 100;
-  S.interruptionImpact = { score: score, positive: posImp, negative: negImp, total: total };
-}
-
-/* ----- 4. ACTIVE LISTENING SCORE ----- */
-function calcActiveListening() {
-  var utts = S.utterances || [];
-  var agentUtts = utts.filter(function(u) { return u.speaker === 'A'; });
-  if (!agentUtts.length) { S.activeListeningScore = 50; return; }
-  var affirmations = ['i see','i understand','i hear you','i get it','right','okay','got it','makes sense','i follow','i\'m with you','sure','absolutely','of course','certainly','i appreciate','that makes sense','good point','i agree','you\'re right','thanks for sharing','thank you for explaining','i know what you mean','i can see why','that\'s understandable','i realize','i can imagine','that must be','i hear what you\'re saying','mm-hmm','uh-huh','yeah','yep','alright','okay then','all right','very well','correct','indeed','precisely','exactly'];
-  var count = 0;
-  for (var ai = 0; ai < agentUtts.length; ai++) {
-    var txt = agentUtts[ai].text.toLowerCase();
-    for (var aj = 0; aj < affirmations.length; aj++) {
-      if (txt.indexOf(affirmations[aj]) >= 0) { count++; break; }
-    }
-  }
-  var ratio = count / agentUtts.length;
-  var score = Math.round(Math.min(100, ratio * 200)); // target ~0.5 affirmations per turn
-  S.activeListeningScore = score;
-}
-
-/* ----- 5. QUESTION RATIO ----- */
-function calcQuestionRatio() {
-  var utts = S.utterances || [];
-  var agentUtts = utts.filter(function(u) { return u.speaker === 'A'; });
-  if (!agentUtts.length) { S.questionRatioScore = 75; return; }
-  var questions = 0;
-  var qWords = ['what','when','where','why','how','who','which','could you','can you','would you','will you','are you','do you','did you','have you','is there','are there','may i','can i'];
-  for (var qi = 0; qi < agentUtts.length; qi++) {
-    var txt = agentUtts[qi].text;
-    if (txt.indexOf('?') >= 0) { questions++; continue; }
-    var tl = txt.toLowerCase();
-    for (var qj = 0; qj < qWords.length; qj++) {
-      if (tl.indexOf(qWords[qj]) === 0 || tl.indexOf(' ' + qWords[qj]) >= 0) { questions++; break; }
-    }
-  }
-  var ratio = questions / agentUtts.length;
-  // Ideal: 20-40% questions (1 in 3 to 1 in 5 utterances)
-  var score = ratio >= 0.15 && ratio <= 0.50 ? 100 : ratio > 0.50 ? Math.round(100 - (ratio - 0.50) * 100) : Math.round(ratio / 0.15 * 60);
-  S.questionRatioScore = Math.max(0, Math.min(100, score));
-}
-
-/* ----- 6. HEDGING DETECTION ----- */
-function calcHedging() {
-  var utts = S.utterances || [];
-  var agentUtts = utts.filter(function(u) { return u.speaker === 'A'; });
-  if (!agentUtts.length) { S.hedgingScore = 75; return; }
-  var hedges = ['i think','i guess','i suppose','maybe','perhaps','possibly','probably','sort of','kind of','a little','a bit','somewhat','almost','basically','essentially','just','like','i mean','you know','i feel like','in my opinion','it seems','might','could be','may be','i\'m not sure','i don\'t know','i\'m not certain','i\'m not positive','not really','not exactly','more or less','pretty much','virtually','practically','roughly','approximately'];
-  var count = 0;
-  for (var hi = 0; hi < agentUtts.length; hi++) {
-    var txt = agentUtts[hi].text.toLowerCase();
-    for (var hj = 0; hj < hedges.length; hj++) {
-      var idx = txt.indexOf(hedges[hj]);
-      if (idx >= 0) { count += (hedges[hj].length > 6 ? 2 : 1); break; }
-    }
-  }
-  var maxExpected = Math.ceil(agentUtts.length * 0.15); // more than 15% hedging is bad
-  var score = count <= maxExpected ? 100 : Math.max(0, 100 - (count - maxExpected) * 20);
-  S.hedgingScore = score;
-}
-
-/* ----- 7. EMOTIONAL ECHO SCORE™ (unique algorithm) ----- */
-function calcEmotionalEcho() {
-  var utts = S.utterances || [];
-  if (!utts || utts.length < 3) { S.echoScore = 75; S.echoDetail = []; return; }
-  var pairs = [];
-  for (var ei = 0; ei < utts.length - 1; ei++) {
-    var cur = utts[ei], nxt = utts[ei + 1];
-    if (!cur || !nxt || cur.speaker === nxt.speaker) continue;
-    var cf = cur.fuzzyScore || 0, nf = nxt.fuzzyScore || 0;
-    // Customer → Agent: agent mirrors customer's emotion
-    if (cur.speaker === 'B' && nxt.speaker === 'A') {
-      var echoed;
-      if (cf < -0.2) echoed = nf > 0;          // customer upset → agent shows warmth
-      else if (cf > 0.2) echoed = nf > 0;       // customer happy → agent matches energy
-      else if (cf > 0.3) echoed = nf > 0.1;     // very positive → agent reciprocates
-      else echoed = nf > -0.15;                 // neutral → agent stays constructive
-      pairs.push({ type: 'echo', customer: cf, agent: nf, good: echoed, utt: cur.text.substring(0, 60) });
-    }
-    // Agent → Customer: agent influences customer's emotion
-    if (cur.speaker === 'A' && nxt.speaker === 'B') {
-      var influenced;
-      if (nf < -0.2) influenced = false;         // customer left upset → bad influence
-      else if (nf > 0.2) influenced = cf > -0.1; // customer positive → agent led well
-      else influenced = true;                    // neutral → fine
-      pairs.push({ type: 'influence', agent: cf, customer: nf, good: influenced, utt: cur.text.substring(0, 60) });
-    }
-  }
-  var good = pairs.filter(function(p) { return p.good; }).length;
-  var total = pairs.length || 1;
-  var raw = (good / total) * 100;
-  // Penalize robotic perfection (>92% suggests staying neutral to avoid engagement)
-  var score = raw > 92 ? Math.round(raw * 0.8) : Math.round(raw);
-  S.echoScore = Math.max(30, Math.min(100, score));
-  S.echoDetail = pairs;
-}
-
-/* ================================================================
-   EPIC CINEMATIC INTRO ANIMATION
-   ================================================================ */
-function playIntro(fromGesture) {
-  var overlay = document.getElementById('introOverlay');
-  if (!overlay) return;
-  overlay.style.display = 'flex';
-  document.body.classList.add('intro-active');
-  var prompt = document.getElementById('introPrompt');
-  var cv = document.getElementById('introCanvas');
-  if (!cv) return;
-  var W = window.innerWidth, H = window.innerHeight;
-  var dpr = window.devicePixelRatio || 1;
-  cv.width = W * dpr; cv.height = H * dpr;
-  cv.style.width = W + 'px'; cv.style.height = H + 'px';
-  var ctx = cv.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  // If no gesture yet, show prompt and wait for click
-  if (!fromGesture) {
-    if (prompt) prompt.style.display = 'block';
-    var gestureHandler = function() {
-      overlay.removeEventListener('click', gestureHandler);
-      overlay.removeEventListener('touchstart', gestureHandler);
-      if (prompt) prompt.style.display = 'none';
-      playIntro(true);
-    };
-    overlay.addEventListener('click', gestureHandler);
-    overlay.addEventListener('touchstart', gestureHandler);
-    return;
-  }
-
-  // ===== CINEMATIC CONSTANTS =====
-  var DUR = 12500;
-  var PURPLE = '#7c3aed';
-  var NAVY = '#0a1929';
-  var PURPLE_DARK = '#5b21b6';
-  var PURPLE_LIGHT = '#a78bfa';
-
-  // Letterbox bars (2.35:1 anamorphic)
-  var LB_H = H * 0.15;
-
-  // Film grain buffer
-  var grainCanvas = document.createElement('canvas');
-  grainCanvas.width = 64; grainCanvas.height = 64;
-  var gCtx = grainCanvas.getContext('2d');
-  var grainData = gCtx.createImageData(64, 64);
-  function refreshGrain() {
-    for (var gi = 0; gi < grainData.data.length; gi += 4) {
-      var gv = Math.random() * 255;
-      grainData.data[gi] = gv; grainData.data[gi+1] = gv; grainData.data[gi+2] = gv; grainData.data[gi+3] = 20;
-    }
-    gCtx.putImageData(grainData, 0, 0);
-  }
-
-  // ===== CINEMATIC AUDIO ENGINE — loud, warm, audible =====
-  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-
-  // Master bus — boosted
-  var masterGain = audioCtx.createGain();
-  masterGain.gain.setValueAtTime(1.8, audioCtx.currentTime);
-  masterGain.connect(audioCtx.destination);
-
-  // Reverb send — parallel bus, no feedback into master
-  var reverbSend = audioCtx.createGain();
-  reverbSend.gain.setValueAtTime(0.35, audioCtx.currentTime);
-  reverbSend.connect(audioCtx.destination);
-  function createReverb() {
-    for (var rvi = 0; rvi < 3; rvi++) {
-      var delay = audioCtx.createDelay();
-      delay.delayTime.setValueAtTime(0.04 + rvi * 0.06, audioCtx.currentTime);
-      var fbGain = audioCtx.createGain();
-      fbGain.gain.setValueAtTime(0.15 - rvi * 0.04, audioCtx.currentTime);
-      var fbFilter = audioCtx.createBiquadFilter();
-      fbFilter.type = 'lowpass'; fbFilter.frequency.setValueAtTime(1500 - rvi * 400, audioCtx.currentTime);
-      masterGain.connect(delay); delay.connect(fbFilter); fbFilter.connect(fbGain);
-      fbGain.connect(reverbSend);
-      fbGain.connect(delay);
-    }
-  }
-  createReverb();
-
-  // Deep sub — single sine with long decay, for weight
-  function playSub(freq, dur, t, gainVal) {
-    try {
-      var osc = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      osc.type = 'sine'; osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(0.001, t);
-      gain.gain.linearRampToValueAtTime(gainVal || 0.4, t + 0.05);
-      gain.gain.setValueAtTime(gainVal || 0.4, t + dur * 0.6);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      var filter = audioCtx.createBiquadFilter();
-      filter.type = 'lowpass'; filter.frequency.setValueAtTime(80, t);
-      osc.connect(filter); filter.connect(gain); gain.connect(masterGain);
-      osc.start(t); osc.stop(t + dur);
-    } catch(e) {}
-  }
-
-  // Cinematic thump — noise + tone blended, dark and punchy
-  function playThump(freq, dur, t, gainVal) {
-    try {
-      var osc = audioCtx.createOscillator();
-      var g1 = audioCtx.createGain();
-      osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, t);
-      g1.gain.setValueAtTime(0.001, t);
-      g1.gain.linearRampToValueAtTime(gainVal || 0.35, t + 0.01);
-      g1.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.6);
-      var f1 = audioCtx.createBiquadFilter();
-      f1.type = 'lowpass'; f1.frequency.setValueAtTime(120, t);
-      osc.connect(f1); f1.connect(g1); g1.connect(masterGain);
-      osc.start(t); osc.stop(t + dur);
-      playSub(freq * 0.5, dur * 1.3, t, gainVal * 0.6);
-      var nLen = Math.ceil(audioCtx.sampleRate * dur * 0.3);
-      var nBuf = audioCtx.createBuffer(1, nLen, audioCtx.sampleRate);
-      var nD = nBuf.getChannelData(0);
-      for (var nti = 0; nti < nLen; nti++) nD[nti] = (Math.random() * 2 - 1) * (1 - nti / nLen);
-      var nSrc = audioCtx.createBufferSource(); nSrc.buffer = nBuf;
-      var ng = audioCtx.createGain();
-      ng.gain.setValueAtTime(0.001, t);
-      ng.gain.linearRampToValueAtTime(gainVal * 0.5 || 0.15, t + 0.005);
-      ng.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.3);
-      var nf = audioCtx.createBiquadFilter();
-      nf.type = 'lowpass'; nf.frequency.setValueAtTime(400, t);
-      nSrc.connect(nf); nf.connect(ng); ng.connect(masterGain);
-      nSrc.start(t); nSrc.stop(t + dur * 0.3);
-    } catch(e) {}
-  }
-
-  // Cinematic pad — multiple detuned triangle waves, heavily low-passed
-  function startPad(freqs, t, dur) {
-    for (var padi = 0; padi < freqs.length; padi++) {
-      try {
-        var o = audioCtx.createOscillator();
-        var g = audioCtx.createGain();
-        o.type = 'triangle';
-        o.frequency.setValueAtTime(freqs[padi], t);
-        o.detune.setValueAtTime((Math.random() - 0.5) * 8, t);
-        g.gain.setValueAtTime(0.001, t);
-        g.gain.linearRampToValueAtTime(0.06 - padi * 0.012, t + 2);
-        g.gain.setValueAtTime(0.06 - padi * 0.012, t + dur - 2);
-        g.gain.linearRampToValueAtTime(0.001, t + dur);
-        var f = audioCtx.createBiquadFilter();
-        f.type = 'lowpass'; f.frequency.setValueAtTime(220, t); f.Q.setValueAtTime(2, t);
-        o.connect(f); f.connect(g); g.connect(masterGain);
-        o.start(t); o.stop(t + dur);
-      } catch(e) {}
-    }
-  }
-
-  // Cinematic string — filtered sawtooth with slow attack
-  function playString(freq, dur, t, gainVal) {
-    try {
-      var o = audioCtx.createOscillator();
-      var g = audioCtx.createGain();
-      o.type = 'sawtooth'; o.frequency.setValueAtTime(freq, t);
-      g.gain.setValueAtTime(0.001, t);
-      g.gain.linearRampToValueAtTime(gainVal || 0.08, t + 0.3);
-      g.gain.setValueAtTime(gainVal || 0.08, t + dur - 0.5);
-      g.gain.linearRampToValueAtTime(0.001, t + dur);
-      var f1 = audioCtx.createBiquadFilter();
-      f1.type = 'lowpass'; f1.frequency.setValueAtTime(350, t); f1.Q.setValueAtTime(1.5, t);
-      var f2 = audioCtx.createBiquadFilter();
-      f2.type = 'highpass'; f2.frequency.setValueAtTime(80, t);
-      o.connect(f1); f1.connect(f2); f2.connect(g); g.connect(masterGain);
-      o.start(t); o.stop(t + dur);
-    } catch(e) {}
-  }
-
-  // Cinematic brass — filtered square with resonance
-  function playBrass(freq, dur, t, gainVal) {
-    try {
-      var o = audioCtx.createOscillator();
-      var g = audioCtx.createGain();
-      o.type = 'square'; o.frequency.setValueAtTime(freq, t);
-      g.gain.setValueAtTime(0.001, t);
-      g.gain.linearRampToValueAtTime(gainVal || 0.05, t + 0.15);
-      g.gain.setValueAtTime(gainVal || 0.05, t + dur - 0.3);
-      g.gain.linearRampToValueAtTime(0.001, t + dur);
-      var f = audioCtx.createBiquadFilter();
-      f.type = 'lowpass'; f.frequency.setValueAtTime(280, t); f.Q.setValueAtTime(3, t);
-      o.connect(f); f.connect(g); g.connect(masterGain);
-      o.start(t); o.stop(t + dur);
-    } catch(e) {}
-  }
-
-  // Cinematic whoosh — filtered noise with sweep
-  function playWhoosh(dur, t, peakFreq, gainVal) {
-    try {
-      var len = Math.ceil(audioCtx.sampleRate * dur);
-      var buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-      var d = buf.getChannelData(0);
-      for (var wi = 0; wi < len; wi++) d[wi] = (Math.random() * 2 - 1) * Math.sin(wi / len * Math.PI * 2) * (1 - Math.abs(wi / len - 0.5) * 2);
-      var src = audioCtx.createBufferSource(); src.buffer = buf;
-      var g = audioCtx.createGain();
-      g.gain.setValueAtTime(0.001, t);
-      g.gain.linearRampToValueAtTime(gainVal || 0.35, t + dur * 0.15);
-      g.gain.linearRampToValueAtTime(0.001, t + dur);
-      var bp = audioCtx.createBiquadFilter();
-      bp.type = 'bandpass'; bp.frequency.setValueAtTime(100, t);
-      bp.frequency.exponentialRampToValueAtTime(peakFreq || 800, t + dur * 0.6);
-      bp.frequency.exponentialRampToValueAtTime(200, t + dur);
-      bp.Q.setValueAtTime(2, t);
-      src.connect(bp); bp.connect(g); g.connect(masterGain);
-      src.start(t); src.stop(t + dur);
-    } catch(e) {}
-  }
-
-  // Cinematic boom — multi-layer sub impact
-  function playBoom(t) {
-    playSub(25, 3, t, 0.7);
-    playSub(35, 2.5, t + 0.05, 0.5);
-    playSub(50, 2, t + 0.1, 0.35);
-    try {
-      var len = Math.ceil(audioCtx.sampleRate * 2);
-      var buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-      var d = buf.getChannelData(0);
-      for (var ni = 0; ni < len; ni++) d[ni] = (Math.random() * 2 - 1) * Math.pow(1 - ni / len, 2);
-      var src = audioCtx.createBufferSource(); src.buffer = buf;
-      var g = audioCtx.createGain();
-      g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
-      var f1 = audioCtx.createBiquadFilter();
-      f1.type = 'lowpass'; f1.frequency.setValueAtTime(250, t);
-      f1.frequency.exponentialRampToValueAtTime(30, t + 1.5);
-      var f2 = audioCtx.createBiquadFilter();
-      f2.type = 'highpass'; f2.frequency.setValueAtTime(15, t);
-      src.connect(f1); f1.connect(f2); f2.connect(g); g.connect(masterGain);
-      src.start(t); src.stop(t + 2);
-    } catch(e) {}
-  }
-
-  // Cinematic shimmer — filtered high harmonics with sparkle
-  function playShimmer(note, t, dur, gainVal) {
-    try {
-      var o = audioCtx.createOscillator();
-      var g = audioCtx.createGain();
-      o.type = 'sine'; o.frequency.setValueAtTime(note, t);
-      g.gain.setValueAtTime(0.001, t);
-      g.gain.linearRampToValueAtTime(gainVal || 0.06, t + 0.05);
-      g.gain.linearRampToValueAtTime(0.001, t + dur);
-      var f = audioCtx.createBiquadFilter();
-      f.type = 'bandpass'; f.frequency.setValueAtTime(note, t); f.Q.setValueAtTime(15, t);
-      o.connect(f); f.connect(g); g.connect(masterGain);
-      o.start(t); o.stop(t + dur);
-      var nLen2 = Math.ceil(audioCtx.sampleRate * dur * 0.5);
-      var nBuf2 = audioCtx.createBuffer(1, nLen2, audioCtx.sampleRate);
-      var nD2 = nBuf2.getChannelData(0);
-      for (var sni = 0; sni < nLen2; sni++) nD2[sni] = (Math.random() * 2 - 1) * (1 - sni / nLen2);
-      var ns = audioCtx.createBufferSource(); ns.buffer = nBuf2;
-      var ng2 = audioCtx.createGain();
-      ng2.gain.setValueAtTime(0.001, t + dur * 0.5);
-      ng2.gain.linearRampToValueAtTime(gainVal * 0.4 || 0.015, t + dur * 0.6);
-      ng2.gain.linearRampToValueAtTime(0.001, t + dur);
-      var nf2 = audioCtx.createBiquadFilter();
-      nf2.type = 'bandpass'; nf2.frequency.setValueAtTime(note * 1.5, t); nf2.Q.setValueAtTime(8, t);
-      ns.connect(nf2); nf2.connect(ng2); ng2.connect(masterGain);
-      ns.start(t + dur * 0.5); ns.stop(t + dur);
-    } catch(e) {}
-  }
-
-  // ===== SCHEDULE ALL AUDIO =====
-  var T = audioCtx.currentTime + 0.2;
-
-  // === SCENE 1 (0-2s): Deep heartbeat ===
-  playThump(55, 0.5, T, 0.4);
-  playThump(55, 0.45, T + 0.55, 0.35);
-  playThump(55, 0.4, T + 1.1, 0.3);
-  playThump(55, 0.35, T + 1.6, 0.25);
-
-  // Ambient pad — dark warm triangle voices
-  startPad([32.7, 65.41, 98.12, 130.81], T, 12.5);
-
-  // === SCENE 2 (2-5s): Orchestral build ===
-  var noteTimes = [2.0, 2.7, 3.4, 4.1, 4.7];
-  var noteFreqs = [261.63, 329.63, 392.0, 523.25, 659.25];
-  for (var ni = 0; ni < noteTimes.length; ni++) {
-    playString(noteFreqs[ni], 1.8, T + noteTimes[ni], 0.06 + ni * 0.025);
-    playString(noteFreqs[ni] * 2, 1.8, T + noteTimes[ni], 0.03 + ni * 0.012);
-    playSub(noteFreqs[ni] * 0.5, 2, T + noteTimes[ni], 0.07 + ni * 0.02);
-    if (ni > 1) playBrass(noteFreqs[ni] * 2, 1.2, T + noteTimes[ni], 0.03 + (ni-2) * 0.015);
-  }
-
-  // Ethereal reverse noise (3-6s) — dark filtered
-  try {
-    var wLen = Math.ceil(audioCtx.sampleRate * 3);
-    var wBuf = audioCtx.createBuffer(1, wLen, audioCtx.sampleRate);
-    var wD = wBuf.getChannelData(0);
-    for (var wi2 = 0; wi2 < wD.length; wi2++) {
-      var wp2 = wi2 / wD.length;
-      wD[wi2] = (Math.random() * 2 - 1) * Math.sin(wp2 * Math.PI * 4) * (1 - Math.abs(wp2 - 0.5) * 2);
-    }
-    var wSrc = audioCtx.createBufferSource(); wSrc.buffer = wBuf;
-    wSrc.playbackRate.setValueAtTime(-1, T + 3);
-    var wG = audioCtx.createGain();
-    wG.gain.setValueAtTime(0.001, T + 3);
-    wG.gain.linearRampToValueAtTime(0.15, T + 4.5);
-    wG.gain.linearRampToValueAtTime(0.001, T + 6);
-    var wFi = audioCtx.createBiquadFilter();
-    wFi.type = 'bandpass'; wFi.frequency.setValueAtTime(600, T + 3); wFi.Q.setValueAtTime(2, T + 3);
-    wSrc.connect(wFi); wFi.connect(wG); wG.connect(masterGain);
-    wSrc.start(T + 3); wSrc.stop(T + 6);
-  } catch(e) {}
-
-  // === SCENE 3 (5-8s): Tension riser + whoosh ===
-  try {
-    var rOsc = audioCtx.createOscillator();
-    var rGain = audioCtx.createGain();
-    rOsc.type = 'sine';
-    rOsc.frequency.setValueAtTime(60, T + 5);
-    rOsc.frequency.exponentialRampToValueAtTime(1200, T + 7.5);
-    rGain.gain.setValueAtTime(0.001, T + 5);
-    rGain.gain.linearRampToValueAtTime(0.08, T + 6);
-    rGain.gain.linearRampToValueAtTime(0.001, T + 8);
-    var rF = audioCtx.createBiquadFilter();
-    rF.type = 'lowpass'; rF.frequency.setValueAtTime(400, T + 5);
-    rF.frequency.linearRampToValueAtTime(3000, T + 7.5);
-    rOsc.connect(rF); rF.connect(rGain); rGain.connect(masterGain);
-    rOsc.start(T + 5); rOsc.stop(T + 8);
-  } catch(e) {}
-
-  playWhoosh(1.5, T + 6.5, 1200, 0.28);
-
-  // === SCENE 4 (8-9s): BOOM ===
-  playBoom(T + 8);
-
-  // === SCENE 5 (9-11s): Logo reveal + shimmer ===
-  playShimmer(880, T + 8.8, 1.8, 0.07);
-  playShimmer(1108.73, T + 8.95, 1.6, 0.06);
-  playShimmer(1318.51, T + 9.1, 1.4, 0.05);
-  playShimmer(1760, T + 9.25, 1.2, 0.04);
-
-  // Vocal-like dark pad
-  try {
-    var vO = audioCtx.createOscillator();
-    var vG = audioCtx.createGain();
-    vO.type = 'triangle'; vO.frequency.setValueAtTime(220, T + 9);
-    vG.gain.setValueAtTime(0.001, T + 9);
-    vG.gain.linearRampToValueAtTime(0.04, T + 9.5);
-    vG.gain.linearRampToValueAtTime(0.001, T + 11);
-    var vF = audioCtx.createBiquadFilter();
-    vF.type = 'bandpass'; vF.frequency.setValueAtTime(400, T + 9); vF.Q.setValueAtTime(4, T + 9);
-    vO.connect(vF); vF.connect(vG); vG.connect(masterGain);
-    vO.start(T + 9); vO.stop(T + 11);
-  } catch(e) {}
-
-  // Orchestral hit
-  var orch = [523.25, 659.25, 783.99, 1046.5];
-  for (var oi = 0; oi < orch.length; oi++) playString(orch[oi], 0.6, T + 10, 0.05 - oi * 0.006);
-
-  // === SCENE 6 (11-12s): Heartbeat fade ===
-  playThump(50, 0.35, T + 11.2, 0.18);
-  playThump(50, 0.3, T + 11.7, 0.12);
-
-  // ===== PARTICLE SYSTEM =====
-  var particles = [];
-  var embers = [];
-  var stars = [];
-  // Pre-generate starfield
-  for (var sgi = 0; sgi < 100; sgi++) {
-    stars.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 1.5 + 0.3, a: Math.random() * 0.5 + 0.1 });
-  }
-
-  // Lens flare points for tunnel scene
-  var flares = [];
-
-  // ===== MAIN ANIMATION LOOP =====
-  var startTime = performance.now();
-  var letterboxAlpha = 1;
-
-  function draw() {
-    var elapsed = performance.now() - startTime;
-    var p = Math.min(elapsed / DUR, 1); // 0..1 progress
-
-    // Starfield (always visible when dark)
-    for (var sti = 0; sti < stars.length; sti++) {
-      var st = stars[sti];
-      ctx.fillStyle = 'rgba(255,255,255,' + st.a * (p < 0.6 ? 1 : Math.max(0, 1 - (p - 0.6) / 0.2)) + ')';
-      ctx.fillRect(st.x, st.y, st.s, st.s);
-    }
-
-    // ===== SCENE 1 (0-2s): Heartbeat dot =====
-    if (p < 0.16) {
-      var s1 = p / 0.16;
-      // Pulsing dot
-      var dotSize = 3 + Math.sin(elapsed / 200) * 2 + s1 * 15;
-      var dotAlpha = Math.min(1, s1 * 3) * (0.6 + Math.sin(elapsed / 150) * 0.4);
-      var grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, dotSize * 4);
-      grad.addColorStop(0, 'rgba(124,58,237,' + dotAlpha + ')');
-      grad.addColorStop(0.3, 'rgba(124,58,237,' + dotAlpha * 0.3 + ')');
-      grad.addColorStop(1, 'rgba(124,58,237,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(W/2, H/2, dotSize * 4, 0, Math.PI * 2);
-      ctx.fill();
-      // Core dot
-      ctx.fillStyle = 'rgba(255,255,255,' + dotAlpha * 0.8 + ')';
-      ctx.beginPath();
-      ctx.arc(W/2, H/2, Math.max(1, dotSize * 0.3), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // ===== SCENE 2 (2-5s): Expanding waveform =====
-    if (p > 0.16 && p < 0.4) {
-      var s2 = (p - 0.16) / 0.24;
-      // Rippling waveform
-      var waveCount = 3;
-      for (var wvi = 0; wvi < waveCount; wvi++) {
-        ctx.beginPath();
-        var wvAmp = 20 + s2 * 80;
-        var wvFreq = 20 + s2 * 15;
-        var wvAlpha = (0.2 + s2 * 0.5) * (1 - wvi * 0.2);
-        ctx.strokeStyle = 'rgba(124,58,237,' + wvAlpha + ')';
-        ctx.lineWidth = 2 + wvi * 0.5;
-        for (var wx2 = 0; wx2 < W; wx2 += 3) {
-          var wy2 = H/2 + Math.sin((wx2/W) * wvFreq + elapsed/250 + wvi * 2.5) * wvAmp +
-                    Math.sin((wx2/W) * 10 + elapsed/400) * wvAmp * 0.3;
-          if (wx2 === 0) ctx.moveTo(wx2, wy2);
-          else ctx.lineTo(wx2, wy2);
-        }
-        ctx.stroke();
-      }
-      // Expanding ring
-      var ringR = s2 * W * 0.5;
-      ctx.strokeStyle = 'rgba(124,58,237,' + (1 - s2) * 0.3 + ')';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(W/2, H/2, ringR, 0, Math.PI * 2); ctx.stroke();
-      // Ember particles drift upward
-      if (embers.length < 80 && Math.random() < 0.3) {
-        embers.push({ x: W/2 + (Math.random()-0.5)*200, y: H/2 + (Math.random()-0.5)*100, vx: (Math.random()-0.5)*15, vy: -20 - Math.random()*40, life: 1, size: 1+Math.random()*2 });
-      }
-    }
-
-    // ===== SCENE 3 (5-8s): Tunnel =====
-    if (p > 0.4 && p < 0.64) {
-      var s3 = (p - 0.4) / 0.24;
-      // Tunnel rings
-      var ringCount = 25;
-      for (var ri = ringCount; ri >= 0; ri--) {
-        var rp = (ri / ringCount + s3 * 0.8) % 1;
-        var rRad = rp * W * 0.9;
-        var rAlpha = (1 - rp) * 0.25 * (0.5 + s3 * 0.5);
-        ctx.strokeStyle = 'rgba(124,58,237,' + rAlpha + ')';
-        ctx.lineWidth = 2 + rp * 6;
-        ctx.beginPath();
-        ctx.arc(W/2, H/2, rRad, 0, Math.PI * 2);
-        ctx.stroke();
-        // Secondary rings slightly offset
-        var rRad2 = ((ri / ringCount + s3 * 0.8 + 0.5) % 1) * W * 0.9;
-        ctx.strokeStyle = 'rgba(124,58,237,' + rAlpha * 0.3 + ')';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(W/2, H/2, rRad2, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      // Light streaks (speed lines)
-      for (var sli = 0; sli < 15; sli++) {
-        var slX = W/2 + (Math.random()-0.5) * W * s3;
-        var slY = H/2 + (Math.random()-0.5) * H * s3;
-        var slLen = 50 + Math.random() * 150;
-        var slAngle = Math.atan2(H/2 - slY, W/2 - slX) + (Math.random()-0.5) * 0.5;
-        ctx.strokeStyle = 'rgba(124,58,237,' + (0.05 + s3 * 0.15) + ')';
-        ctx.lineWidth = 1 + Math.random();
-        ctx.beginPath();
-        ctx.moveTo(slX, slY);
-        ctx.lineTo(slX + Math.cos(slAngle) * slLen, slY + Math.sin(slAngle) * slLen);
-        ctx.stroke();
-      }
-      // Lens flares
-      if (Math.random() < 0.05) {
-        flares.push({ x: W/2 + (Math.random()-0.5) * W * 0.6, y: H/2 + (Math.random()-0.5) * H * 0.6, size: 10 + Math.random() * 30, life: 1 });
-      }
-      for (var fli = flares.length - 1; fli >= 0; fli--) {
-        var fl = flares[fli];
-        fl.life -= 0.02;
-        if (fl.life <= 0) { flares.splice(fli, 1); continue; }
-        var flGrad = ctx.createRadialGradient(fl.x, fl.y, 0, fl.x, fl.y, fl.size);
-        flGrad.addColorStop(0, 'rgba(255,255,255,' + fl.life * 0.6 + ')');
-        flGrad.addColorStop(0.3, 'rgba(124,58,237,' + fl.life * 0.2 + ')');
-        flGrad.addColorStop(1, 'rgba(124,58,237,0)');
-        ctx.fillStyle = flGrad;
-        ctx.beginPath(); ctx.arc(fl.x, fl.y, fl.size, 0, Math.PI * 2); ctx.fill();
-      }
-
-      // Motion blur effect — slight trail
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(0, 0, W, H);
-    }
-
-    // ===== SCENE 4 (8-9s): White flash =====
-    if (p > 0.64 && p < 0.72) {
-      var s4 = (p - 0.64) / 0.08;
-      // Flash intensity with smooth bell curve
-      var flashIntensity = Math.sin(s4 * Math.PI);
-      ctx.fillStyle = 'rgba(255,255,255,' + (flashIntensity * 0.95) + ')';
-      ctx.fillRect(0, 0, W, H);
-      // Chromatic aberration during flash
-      if (s4 > 0.1 && s4 < 0.9) {
-        var caA = 0.1 * flashIntensity;
-        ctx.fillStyle = 'rgba(255,0,0,' + caA + ')';
-        ctx.fillRect(0, 0, W, H);
-      }
-    }
-
-    // ===== SCENE 5 (9-11s): Logo slam =====
-    if (p > 0.72) {
-      var s5 = (p - 0.72) / 0.28;
-
-      // Logo size animation — slam in with overshoot
-      var logoScale;
-      if (s5 < 0.12) logoScale = 1 + Math.sin(s5 / 0.12 * Math.PI) * 0.4;
-      else logoScale = 1 + (0.12 / s5) * 0.02;
-
-      var logoFontSize = 80 * logoScale;
-      ctx.font = '900 ' + logoFontSize + 'px Poppins,Inter,sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Metallic emerald chrome gradient
-      var logoX = W / 2, logoY = H / 2 - 10;
-      var lg = ctx.createLinearGradient(logoX - 120, logoY - 50, logoX + 120, logoY + 50);
-      lg.addColorStop(0, PURPLE_DARK);
-      lg.addColorStop(0.15, PURPLE);
-      lg.addColorStop(0.35, PURPLE_LIGHT);
-      lg.addColorStop(0.5, '#ffffff');
-      lg.addColorStop(0.65, PURPLE_LIGHT);
-      lg.addColorStop(0.85, PURPLE);
-      lg.addColorStop(1, PURPLE_DARK);
-
-      // Shadow glow
-      ctx.shadowColor = 'rgba(124,58,237,0.5)';
-      ctx.shadowBlur = 40 + Math.sin(elapsed / 400) * 15;
-      ctx.fillStyle = lg;
-      ctx.fillText('VoiceIQ', logoX, logoY);
-
-      // 3D effect — duplicate with offset for depth
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(124,58,237,0.15)';
-      ctx.fillText('VoiceIQ', logoX + 2, logoY + 2);
-
-      // Restore shadow
-      ctx.shadowColor = 'rgba(124,58,237,0.3)';
-      ctx.shadowBlur = 20 + Math.sin(elapsed / 400) * 8;
-
-      // Particle explosion at logo reveal
-      if (s5 < 0.2 && particles.length < 250) {
-        var burstCount = Math.floor((0.2 - s5) / 0.003);
-        for (var epi = 0; epi < burstCount && particles.length < 250; epi++) {
-          var ang = Math.random() * Math.PI * 2;
-          var spd = 150 + Math.random() * 500;
-          var colors2 = [PURPLE, PURPLE_LIGHT, '#7c3aed', '#ffffff', '#c4b5fd'];
-          particles.push({
-            x: logoX, y: logoY, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-            life: 0.7 + Math.random() * 0.3, size: 1.5 + Math.random() * 3,
-            color: colors2[Math.floor(Math.random() * colors2.length)],
-            gravity: 100 + Math.random() * 200
-          });
-        }
-      }
-
-      // Subtitle
-      if (s5 > 0.25) {
-        var subA = Math.min(1, (s5 - 0.25) / 0.12);
-        ctx.shadowBlur = 0;
-        ctx.font = '18px Inter,sans-serif';
-        ctx.fillStyle = 'rgba(148,163,184,' + subA + ')';
-        ctx.fillText('The Future of Call Intelligence', logoX, logoY + 60);
-        // Thin accent line
-        ctx.strokeStyle = 'rgba(124,58,237,' + subA * 0.4 + ')';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(logoX - 80, logoY + 42);
-        ctx.lineTo(logoX + 80, logoY + 42);
-        ctx.stroke();
-      }
-    }
-
-    // ===== EMITTERS (background embers, active throughout) =====
-    if (p > 0.16 && p < 0.7 && Math.random() < 0.2) {
-      embers.push({ x: W/2 + (Math.random()-0.5)*300, y: H/2 + (Math.random()-0.5)*200, vx: (Math.random()-0.5)*20, vy: -15 - Math.random()*50, life: 1, size: 1+Math.random()*2 });
-    }
-
-    // ===== UPDATE PARTICLES =====
-    for (var pi2 = particles.length - 1; pi2 >= 0; pi2--) {
-      var p2 = particles[pi2];
-      p2.x += p2.vx * 0.016;
-      p2.y += p2.vy * 0.016;
-      p2.vy += (p2.gravity || 200) * 0.016;
-      p2.life -= 0.012;
-      if (p2.life <= 0) { particles.splice(pi2, 1); continue; }
-      ctx.globalAlpha = p2.life;
-      ctx.fillStyle = p2.color;
-      ctx.beginPath();
-      ctx.arc(p2.x, p2.y, p2.size * p2.life, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-
-    // ===== UPDATE EMBERS =====
-    for (var ei = embers.length - 1; ei >= 0; ei--) {
-      var eb = embers[ei];
-      eb.x += eb.vx * 0.016;
-      eb.y += eb.vy * 0.016;
-      eb.life -= 0.006;
-      if (eb.life <= 0) { embers.splice(ei, 1); continue; }
-      ctx.globalAlpha = eb.life * 0.4;
-      ctx.fillStyle = PURPLE;
-      ctx.beginPath();
-      ctx.arc(eb.x, eb.y, eb.size * eb.life, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-
-    // ===== LETTERBOX BARS (2.35:1) =====
-    ctx.fillStyle = 'rgba(0,0,0,' + letterboxAlpha + ')';
-    ctx.fillRect(0, 0, W, LB_H);
-    ctx.fillRect(0, H - LB_H, W, LB_H);
-
-    // ===== FILM GRAIN =====
-    refreshGrain();
-    ctx.globalAlpha = 0.06;
-    ctx.drawImage(grainCanvas, 0, 0, W, H);
-    ctx.globalAlpha = 1;
-
-    // Chromatic aberration on tunnel/logo scenes
-    if (p > 0.4 && p < 0.72) {
-      ctx.fillStyle = 'rgba(255,0,0,0.02)';
-      ctx.fillRect(1, 0, W, H);
-      ctx.fillStyle = 'rgba(0,100,255,0.02)';
-      ctx.fillRect(0, 0, W-1, H);
-    }
-
-    // Edge vignette
-    var vigGrad = ctx.createRadialGradient(W/2, H/2, W*0.2, W/2, H/2, W*0.7);
-    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    vigGrad.addColorStop(1, 'rgba(0,0,0,0.6)');
-    ctx.fillStyle = vigGrad;
-    ctx.fillRect(0, 0, W, H);
-
-    // ===== LOOP OR FINISH =====
-    if (p < 1) {
-      requestAnimationFrame(draw);
-    } else {
-      // Cinematic fade to black
-      var fadeT = performance.now();
-      function fadeOut() {
-        var fE = performance.now() - fadeT;
-        var fP = Math.min(fE / 800, 1);
-        ctx.fillStyle = 'rgba(0,0,0,' + fP + ')';
-        ctx.fillRect(0, 0, W, H);
-        if (fP < 1) requestAnimationFrame(fadeOut);
-        else { overlay.style.display = 'none'; audioCtx.close(); document.body.classList.remove('intro-active'); }
-      }
-      setTimeout(fadeOut, 200);
-    }
-  }
-
-  draw();
-}
-
-// Auto-show intro on page load — shows "Tap to experience" prompt, waits for gesture
-document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(function() { var io = document.getElementById('introOverlay'); if (io) io.style.display = 'flex'; playIntro(); }, 200);
-});
 
 </script>
 </body>
 </html>
-
