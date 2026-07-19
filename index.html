@@ -29,7 +29,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 @keyframes gradientFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes fadeSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
-@keyframes cardEntrance{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 .container{max-width:1200px;margin:0 auto;padding:4px 16px}
 .dashboard-row{display:flex;gap:10px;margin-bottom:10px}@media(max-width:768px){.dashboard-row{flex-direction:column}}
 
@@ -38,10 +37,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 .card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),transparent);opacity:0.6;transition:opacity .3s}
 .card:hover::before{opacity:1}
 .card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.5)}
-.card:nth-child(1){animation-delay:0s}.card:nth-child(2){animation-delay:0.06s}.card:nth-child(3){animation-delay:0.12s}
-.card:nth-child(4){animation-delay:0.18s}.card:nth-child(5){animation-delay:0.24s}.card:nth-child(6){animation-delay:0.3s}
-.card:nth-child(7){animation-delay:0.36s}.card:nth-child(8){animation-delay:0.42s}.card:nth-child(9){animation-delay:0.48s}
-.card:nth-child(10){animation-delay:0.54s}.card:nth-child(11){animation-delay:0.6s}.card:nth-child(12){animation-delay:0.66s}
 .card-title{font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .card-title i{-webkit-text-fill-color:initial;color:var(--blue);background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(167,139,250,0.08));width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
 
