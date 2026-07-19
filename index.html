@@ -15,31 +15,31 @@
 :root{--bg:#0d0221;--bg2:#16032e;--card:rgba(22,3,46,0.75);--blue:#7c3aed;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--purple:#a78bfa;--cyan:#06b6d4;--text:#f1f5f9;--text2:#94a3b8;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.5);--glow:0 0 30px rgba(124,58,237,0.15)}
 body{font-family:'Inter','Noto Sans Devanagari',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;position:relative}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,0.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.04) 0%,transparent 50%)}
-.screen{display:none;opacity:0;padding:0 8px}
+.screen{display:none;opacity:0;padding:0 8px;min-height:0}
 .screen.active{display:block;opacity:1}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes glow{0%,100%{text-shadow:0 0 20px rgba(124,58,237,0.3)}50%{text-shadow:0 0 50px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.2)}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 @keyframes barFill{to{width:var(--w)}}
 @keyframes strokeDraw{to{stroke-dashoffset:0}}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @keyframes ripple{to{transform:scale(4);opacity:0}}
 @keyframes borderGlow{0%,100%{border-color:rgba(124,58,237,0.2);box-shadow:0 0 15px rgba(124,58,237,0)}50%{border-color:rgba(124,58,237,0.5);box-shadow:0 0 25px rgba(124,58,237,0.1)}}
 @keyframes scaleIn{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes gradientFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-@keyframes fadeSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-.container{max-width:1200px;margin:0 auto;padding:2px 16px}
-.dashboard-row{display:flex;gap:6px;margin-bottom:6px}@media(max-width:768px){.dashboard-row{flex-direction:column}}
+.container{max-width:1200px;margin:0 auto;padding:2px 12px}
+.dashboard-row{display:flex;gap:4px;margin-bottom:4px}@media(max-width:768px){.dashboard-row{flex-direction:column}}
 
 /* ===== GLASS CARD SYSTEM with 3D hover ===== */
-.card{background:var(--card);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow);margin-bottom:6px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;position:relative;overflow:hidden}
+.card{background:var(--card);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow);margin-bottom:4px;border:1px solid rgba(124,58,237,0.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .3s cubic-bezier(0.22,1,0.36,1),box-shadow .3s ease;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),transparent);opacity:0.6;transition:opacity .3s}
 .card:hover::before{opacity:1}
 .card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.5)}
-.card-title{font-size:14px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.card-title{font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--text),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .card-title i{-webkit-text-fill-color:initial;color:var(--blue);background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(167,139,250,0.08));width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
 
 /* ===== GRADIENT BG ===== */
@@ -48,19 +48,20 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 
 /* ===== HEADINGS ===== */
 .glow-text{animation:glow 2s ease-in-out infinite;font-family:'Poppins',sans-serif;font-size:clamp(32px,8vw,52px);font-weight:900;background:linear-gradient(135deg,#7c3aed,#22c55e,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-1px;line-height:1.1}
-.section-head{font-family:'Poppins',sans-serif;font-size:20px;font-weight:800;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid;border-image:linear-gradient(90deg,var(--blue),var(--cyan),transparent) 1;display:flex;align-items:center;gap:10px}
+.section-head{font-family:'Poppins',sans-serif;font-size:18px;font-weight:800;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid;border-image:linear-gradient(90deg,var(--blue),var(--cyan),transparent) 1;display:flex;align-items:center;gap:10px}
 .section-head i{color:var(--blue);font-size:18px}
 .subtitle{color:var(--text2);font-size:clamp(14px,3vw,18px);margin:4px 0 16px;font-weight:400}
 
 /* ===== NAV DOTS ===== */
-.nav-dots{display:flex;justify-content:center;gap:3px;margin-bottom:4px;flex-wrap:wrap}
-.nav-dot{width:28px;height:28px;border-radius:50%;border:2px solid #2d1b4e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .25s;background:transparent;position:relative}
+.nav-dots{display:flex;justify-content:center;gap:2px;margin-bottom:2px;flex-wrap:wrap}
+.nav-dot{width:22px;height:22px;border-radius:50%;border:2px solid #2d1b4e;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text2);cursor:pointer;transition:all .25s;background:transparent;position:relative}
+.nav-dot i{font-size:9px}
 .nav-dot:hover{border-color:var(--blue);color:var(--blue);transform:scale(1.1)}
 .nav-dot.active{border-color:var(--blue);color:#fff;background:var(--blue);box-shadow:0 0 16px rgba(124,58,237,0.4)}
 .nav-dot.visited{border-color:var(--green);color:var(--green);background:rgba(34,197,94,0.1)}
-.nav-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;gap:8px}
+.nav-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1px;gap:8px}
 .nav-bar .screen-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;background:linear-gradient(90deg,var(--text2),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.nav-arrows{display:flex;justify-content:space-between;margin-top:8px;gap:12px}
+.nav-arrows{display:flex;justify-content:space-between;margin-top:4px;gap:12px}
 .nav-arrows .btn{flex:1;max-width:200px}
 
 /* ===== BUTTON SYSTEM ===== */
@@ -393,7 +394,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div class="card">
 <div class="card-title" style="flex-wrap:wrap;gap:8px">
 <span style="flex:1"><i class="fas fa-message" style="color:var(--blue)"></i> Key Moments</span>
-<button class="btn btn-outline" style="padding:8px 16px;font-size:12px;border-radius:8px" id="toggleTranscript" onclick="toggleFullTranscript()"><i class="fas fa-list"></i> Show Full Transcript</button>
+<button class="btn btn-outline" style="padding:8px 16px;font-size:12px;border-radius:8px" id="toggleTranscript" onclick="toggleFullTranscript()"><i class="fas fa-filter"></i> Show Key Moments</button>
 </div>
 <div class="summary-strip" id="transcriptSummary"></div>
 <div class="transcript-box" id="transcriptContainer"></div>
@@ -809,6 +810,8 @@ function runSimulatedAnalysis() {
 
 /* ========================= NAVIGATION ========================= */
 function buildDots() {
+  var icons = ['','','fa-comments','fa-exclamation-circle','fa-fire','fa-trophy','fa-lightbulb','fa-list-check','fa-download'];
+  var labels = ['','','Transcript','Moments','Timeline','Dashboard','Script','Recommend','Export'];
   for (let i = 3; i <= TOTAL; i++) {
     const c = document.getElementById('navDots' + i);
     if (c) {
@@ -818,9 +821,10 @@ function buildDots() {
       for (let j = 1; j <= TOTAL; j++) {
         const d = document.createElement('div');
         d.className = 'nav-dot';
-        d.textContent = j;
+        if (icons[j]) d.innerHTML = '<i class="fas ' + icons[j] + '"></i>';
         d.setAttribute('role', 'button');
-        d.setAttribute('aria-label', 'Go to screen ' + j);
+        d.setAttribute('aria-label', (labels[j] || 'Step ' + j));
+        d.title = labels[j] || 'Step ' + j;
         d.onclick = () => goToScreen(j);
         c.appendChild(d);
       }
@@ -847,9 +851,9 @@ function updateDots(n) {
     if (!c) continue;
     for (let j = 0; j < c.children.length; j++) {
       c.children[j].className = 'nav-dot';
-      const v = parseInt(c.children[j].textContent);
-      if (v === n) c.children[j].classList.add('active');
-      else if (visitedScreens.has(v)) c.children[j].classList.add('visited');
+      var stepNum = j + 1;
+      if (stepNum === n) c.children[j].classList.add('active');
+      else if (visitedScreens.has(stepNum)) c.children[j].classList.add('visited');
     }
   }
 }
@@ -1803,13 +1807,13 @@ function renderAll() {
 }
 
 /* ========================= RENDER: TRANSCRIPT ========================= */
-let showFullTranscript = false;
+var showFullTranscript = true;
 
 function toggleFullTranscript() {
   showFullTranscript = !showFullTranscript;
   const btn = document.getElementById('toggleTranscript');
   btn.innerHTML = showFullTranscript
-    ? '<i class="fas fa-exclamation-circle"></i> Show Key Moments'
+    ? '<i class="fas fa-filter"></i> Show Key Moments'
     : '<i class="fas fa-list"></i> Show Full Transcript';
   renderTranscriptBubbles();
 }
@@ -2219,44 +2223,76 @@ function downloadPDF() {
     var esc=function(t){return String(t).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');};
     var pad=function(n){return('0000000000'+n).slice(-10);};
     var lines=[], y=740, page=1;
-    var add=function(t,bold,sz){if(y<80){page++;y=740;}lines.push({text:t,bold:bold||false,size:sz||10,y:y});y-=bold?24:16;};
+    var add=function(t,bold,sz){if(y<80){page++;y=740;}lines.push({text:t,bold:bold||false,size:sz||10,y:y});y-=bold?22:14;};
+    // Header
     add('VoiceIQ \u2014 Call Analysis Report',true,20);
-    add('Generated: '+now.toLocaleString(),false,9); y-=4;
-    add('Overall Score: '+s.overall+'% ('+s.grade+')',true,13);
+    add('Generated: '+now.toLocaleString(),false,9); y-=8;
+    // Score gauge (visual ring - fake using asterisks)
+    var overall=s.overall||0;
+    var gaugeLen=30, filled=Math.round(overall/100*gaugeLen);
+    add('Overall Score: '+overall+'% ('+s.grade+')  ['+new Array(filled+1).join('\u2588')+new Array(gaugeLen-filled+1).join('\u2591')+']',true,13);
     add('Duration: '+(cd.duration||'N/A')+'  |  Agent: '+(cd.agentUtts||'N/A')+'  |  Customer: '+(cd.custUtts||'N/A'),false,9);
-    y-=8;
-    var m=[['Empathy',s.empathy,'0.48 0.23 0.93'],['Tone',s.tone,'0.13 0.77 0.37'],['Resolution',s.resolution,'0.96 0.62 0.04'],['Negativity',s.negativity,'0.93 0.27 0.27'],['Balance',s.balance,'0.65 0.48 0.98'],['Interruptions',s.interrupt,'0.48 0.23 0.93'],['Pace',s.pace,'0.13 0.77 0.37'],['Turn-taking',s.turn,'0.02 0.71 0.83'],['Keywords',s.keywords,'0.96 0.62 0.04'],['Listening',s.listening||50,'0.48 0.23 0.93'],['Q Ratio',s.qratio||75,'0.65 0.48 0.98'],['Hedging',s.hedging||75,'0.93 0.27 0.27'],['Echo',s.echo||75,'0.02 0.71 0.83']];
-    y-=2; add('SCORE BREAKDOWN',true,12); y-=2;
-    var barLeft=400, barMax=160, barStartY=y;
-    for(var i=0;i<Math.min(m.length,10);i++){
-      if(barStartY-(i*20)<80) break;
-      add(m[i][0]+'  '+m[i][1]+'%  ['+new Array(Math.round(m[i][1]/5)+1).join('|')+new Array(21-Math.round(m[i][1]/5)).join('.')+']',false,8);
+    y-=10;
+    // Score breakdown header
+    add('SCORE BREAKDOWN',true,13); y-=4;
+    var metrics=[
+      ['Empathy',s.empathy],[ 'Tone',s.tone],[ 'Resolution',s.resolution],[ 'Negativity',s.negativity],
+      ['Balance',s.balance],[ 'Interruptions',s.interrupt],[ 'Pace',s.pace],[ 'Turn-taking',s.turn],
+      ['Keywords',s.keywords],[ 'Listening',s.listening||50],[ 'Q Ratio',s.qratio||75],
+      ['Hedging',s.hedging||75],[ 'Echo',s.echo||75]
+    ];
+    var barColors=['0.48 0.23 0.93','0.13 0.77 0.37','0.96 0.62 0.04','0.93 0.27 0.27','0.65 0.48 0.98','0.48 0.23 0.93','0.13 0.77 0.37','0.02 0.71 0.83','0.96 0.62 0.04','0.48 0.23 0.93','0.65 0.48 0.98','0.93 0.27 0.27','0.02 0.71 0.83'];
+    var barLeft=370, barMax=190, barW=10, barGap=16, barStartY=y;
+    for(var mi=0;mi<metrics.length;mi++){
+      var barY=barStartY-((mi+1)*barGap);
+      if(barY<60){page++;barY=740-(mi*barGap);barStartY=740+barGap;}
+      var barWid=Math.round((metrics[mi][1]/100)*barMax);
+      add(metrics[mi][0]+'  '+metrics[mi][1]+'%',false,9);
     }
+    y-=6;
+    // Recommendations
     var pdfRecs = typeof getPriorityRecommendations === 'function' ? getPriorityRecommendations() : [];
     if(pdfRecs.length){
-      y-=4; add('RECOMMENDATIONS',true,11);
-      for(var ri=0;ri<Math.min(pdfRecs.length,6);ri++){
+      add('RECOMMENDATIONS',true,12); y-=2;
+      for(var ri=0;ri<Math.min(pdfRecs.length,8);ri++){
         if(y<60) break;
         add('\u2022 '+esc(pdfRecs[ri].label+': '+pdfRecs[ri].desc),false,8);
       }
     }
+    // Call KPIs
+    y-=4; add('CALL KPIs',true,12);
+    add('Sentiment Trend: '+(S.sentimentTrend?.direction||'N/A'),false,9);
+    add('Interruptions: '+(S.interruptions?.count||0)+'  |  Talk Balance: '+(S.talkBalance?.score||'N/A')+'%',false,9);
+    add('Keyword Coverage: '+(S.keywords?.coverage||'N/A'),false,9);
+
     function pdfStr(){
       var content='';
+      // Draw text lines
       for(var i=0;i<lines.length;i++){
         var l=lines[i];
         content+='BT /F'+(l.bold?1:2)+' '+l.size+' Tf 50 '+l.y+' Td ('+esc(l.text)+') Tj ET\n';
       }
-      // Bar chart: draw filled rectangles for each metric
-      var bLeft=400, bMax=160, bTop=barStartY;
-      for(var bi=0;bi<Math.min(m.length,10);bi++){
-        var bY=bTop-(bi*20);
-        if(bY<80) break;
-        var bW=(m[bi][1]/100)*bMax;
-        content+='0.75 0.75 0.75 RG 0.75 0.75 0.75 rg\n'; // gray background bar
-        content+=bLeft+' '+bY+' '+bMax+' 6 re f\n';
-        content+=m[bi][2]+' RG '+m[bi][2]+' rg\n'; // colored fill
-        content+=bLeft+' '+bY+' '+bW+' 6 re f\n';
+      // Draw bar chart on left side - all 13 metrics
+      var bLeft=370, bMax=190, bTop=barStartY, bW=8, bGap=16;
+      for(var bi=0;bi<metrics.length;bi++){
+        var bY=bTop-((bi+1)*bGap);
+        if(bY<60){
+          bY=740-(bi*bGap);
+        }
+        var bFill=Math.round((metrics[bi][1]/100)*bMax);
+        // Background bar
+        content+='0.8 0.8 0.8 RG 0.8 0.8 0.8 rg\n';
+        content+=bLeft+' '+bY+' '+bMax+' 5 re f\n';
+        // Filled bar
+        content+=barColors[bi]+' RG '+barColors[bi]+' rg\n';
+        content+=bLeft+' '+bY+' '+bFill+' 5 re f\n';
+        // Score text inside bar
+        content+='BT /F2 7 Tf '+(bLeft+bFill+4)+' '+(bY-1)+' Td ('+metrics[bi][1]+'%) Tj ET\n';
       }
+      // Overall summary at bottom
+      var sumY=60;
+      content+='BT /F1 10 Tf 50 '+sumY+' Td (VoiceIQ Report \u2014 Page 1) Tj ET\n';
+
       var h='%PDF-1.4\n', o1='1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n', o2='2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n';
       var o3='3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R/F2 6 0 R>>>>>>endobj\n';
       var o4='4 0 obj<</Length '+content.length+'>>stream\n'+content+'endstream\nendobj\n';
