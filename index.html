@@ -22,6 +22,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 @keyframes barFill{to{width:var(--w)}}
 @keyframes strokeDraw{to{stroke-dashoffset:0}}
 .container{max-width:1200px;margin:0 auto;padding:1px 6px}
+.screen.active .container:first-child{padding-top:0}
 .dashboard-row{display:flex;gap:3px;margin-bottom:2px}@media(max-width:768px){.dashboard-row{flex-direction:column}}
 
 /* ===== GLASS CARD SYSTEM ===== */
@@ -41,16 +42,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 .subtitle{color:var(--text2);font-size:clamp(12px,2.5vw,15px);margin:2px 0 8px;font-weight:400}
 
 /* ===== NAV DOTS ===== */
-.nav-dots{display:flex;justify-content:center;gap:1px;margin-bottom:0;flex-wrap:wrap}
-.nav-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid #2d1b4e;display:flex;align-items:center;justify-content:center;font-size:7px;color:var(--text2);cursor:pointer;transition:all .2s;background:transparent}
+.nav-dots{display:flex;justify-content:center;gap:1px;flex-wrap:wrap;margin-bottom:0;margin-top:-10px;padding-top:10px;opacity:0.5;transition:opacity .2s;height:12px;overflow:visible;pointer-events:none}
+.screen:hover .nav-dots,.nav-dots:hover{opacity:1;pointer-events:auto}
+.nav-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid #2d1b4e;display:flex;align-items:center;justify-content:center;font-size:6px;color:var(--text2);cursor:pointer;transition:all .2s;background:transparent}
 .nav-dot i{font-size:7px}
 .nav-dot:hover{border-color:var(--blue);color:var(--blue)}
 .nav-dot.active{border-color:var(--blue);color:#fff;background:var(--blue);box-shadow:0 0 8px rgba(124,58,237,0.4)}
 .nav-dot.visited{border-color:var(--green);color:var(--green);background:rgba(34,197,94,0.1)}
-.nav-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:0;gap:4px}
-.nav-bar .screen-label{font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;background:linear-gradient(90deg,var(--text2),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.nav-arrows{display:flex;justify-content:space-between;margin-top:2px;gap:8px}
-.nav-arrows .btn{flex:1;max-width:160px}
+.nav-bar{display:flex;align-items:center;gap:4px;margin-bottom:0;padding:1px 0;height:18px}
+.nav-bar .screen-label{font-size:9px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;background:linear-gradient(90deg,var(--text2),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.nav-bar .screen-label:last-child{display:none}
+.nav-bar + .nav-dots{margin-top:-2px}
+.nav-arrows{display:flex;justify-content:space-between;margin-top:2px;gap:6px}
+.nav-arrows .btn{flex:1;max-width:140px}
 
 /* ===== BUTTON SYSTEM ===== */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 14px;border-radius:8px;border:none;font-family:'Inter',sans-serif;font-weight:600;font-size:11px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
@@ -348,11 +352,12 @@ select{width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(124,5
 <div class="nav-bar"><span class="screen-label"><i class="fas fa-comments"></i> Transcript</span><span class="screen-label">Step 3 / 9</span></div>
 <div class="nav-dots" id="navDots3"></div>
 <div class="card">
-<div class="card-title" style="flex-wrap:wrap;gap:8px">
-<span style="flex:1"><i class="fas fa-message" style="color:var(--blue)"></i> Key Moments</span>
-<button class="btn btn-outline" style="padding:8px 16px;font-size:12px;border-radius:8px" id="toggleTranscript" onclick="toggleFullTranscript()"><i class="fas fa-filter"></i> Show Key Moments</button>
+<div class="card-title" style="display:flex;align-items:center;gap:4px">
+<i class="fas fa-message" style="color:var(--blue)"></i>
+<span style="flex:1">Key Moments</span>
+<button class="btn btn-outline" style="padding:2px 8px;font-size:9px;border-radius:6px" id="toggleTranscript" onclick="toggleFullTranscript()"><i class="fas fa-filter"></i> Key</button>
 </div>
-<div class="summary-strip" id="transcriptSummary"></div>
+<div class="summary-strip" id="transcriptSummary" style="margin-bottom:4px"></div>
 <div class="transcript-box" id="transcriptContainer"></div>
 </div>
 <div class="nav-arrows">
