@@ -29,6 +29,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 @keyframes gradientFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes fadeSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shimmerWide{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 .container{max-width:1200px;margin:0 auto;padding:4px 16px}
 .dashboard-row{display:flex;gap:10px;margin-bottom:10px}@media(max-width:768px){.dashboard-row{flex-direction:column}}
 
