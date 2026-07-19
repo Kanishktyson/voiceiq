@@ -489,6 +489,10 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div class="journey-box" id="journeyBox"><span class="text-muted">Analyzing...</span></div>
 </div>
 <div class="card">
+<div class="card-title"><i class="fas fa-chart-line" style="color:var(--cyan)"></i> Sentiment Flow <span class="text-muted text-sm" style="-webkit-text-fill-color:var(--text2)">(agent vs customer over time)</span></div>
+<canvas id="sentimentFlowChart" style="width:100%;height:140px;display:block;border-radius:8px"></canvas>
+</div>
+<div class="card">
 <div class="card-title"><i class="fas fa-chart-simple" style="color:var(--blue)"></i> Call KPIs</div>
 <div class="kpi-grid" id="kpiGrid"></div>
 </div>
@@ -1804,6 +1808,7 @@ function renderAll() {
   renderComplianceFlags();
   renderEmotionTimeline();
   renderGapAnalysis();
+  renderSentimentFlow();
 }
 
 /* ========================= RENDER: TRANSCRIPT ========================= */
@@ -2459,7 +2464,183 @@ async function translateAll() {
   await Promise.all(all);
 }
 
+/* ===== ADVANCED SENTIMENT ANALYSIS with Negation + Intensifiers ===== */
+function analyzeUtteranceSentiment(text) {
+  if (!text || !text.trim()) return { score: 0, label: 'NEUTRAL', confidence: 0 };
+  var t = text.toLowerCase().replace(/[^a-z\s]/g, '');
+  var words = t.split(/\s+/).filter(Boolean);
+
+  // Domain-specific sentiment lexicon (call center optimized)
+  var POS_WORDS = {
+    'thank': 0.8, 'thanks': 0.8, 'appreciate': 0.7, 'helpful': 0.7, 'great': 0.6, 'perfect': 0.7,
+    'excellent': 0.8, 'wonderful': 0.7, 'fantastic': 0.7, 'amazing': 0.6, 'love': 0.5,
+    'happy': 0.6, 'glad': 0.5, 'pleased': 0.5, 'good': 0.4, 'better': 0.4, 'best': 0.5,
+    'solved': 0.6, 'resolved': 0.6, 'fixed': 0.5, 'working': 0.3, 'understood': 0.4,
+    'yes': 0.3, 'sure': 0.2, 'okay': 0.1, 'fine': 0.2, 'correct': 0.3, 'right': 0.2,
+    'absolutely': 0.4, 'definitely': 0.4, 'certainly': 0.3, 'awesome': 0.7, 'superb': 0.7,
+    'delighted': 0.7, 'relieved': 0.5, 'grateful': 0.6, 'perfectly': 0.6, 'willing': 0.3,
+    'agree': 0.3, 'agreed': 0.3, 'helps': 0.4, 'nice': 0.3, 'sweet': 0.3, 'cool': 0.2
+  };
+  var NEG_WORDS = {
+    'not': -0.3, 'no': -0.4, 'never': -0.5, 'nobody': -0.3, 'nothing': -0.3, 'none': -0.3,
+    'bad': -0.5, 'terrible': -0.8, 'horrible': -0.8, 'awful': -0.7, 'worst': -0.8,
+    'hate': -0.7, 'angry': -0.7, 'furious': -0.8, 'upset': -0.5, 'frustrated': -0.6,
+    'annoyed': -0.5, 'disappointed': -0.6, 'unhappy': -0.5, 'mad': -0.5, 'ridiculous': -0.6,
+    'stupid': -0.6, 'useless': -0.6, 'wrong': -0.4, 'problem': -0.3, 'issue': -0.3,
+    'error': -0.3, 'broken': -0.5, 'failed': -0.5, 'failure': -0.5, 'mistake': -0.4,
+    'dissatisfied': -0.6, 'unacceptable': -0.7, 'impossible': -0.5, 'incompetent': -0.6,
+    'unfortunately': -0.3, 'sorry': -0.2, 'apologize': -0.1, 'complaint': -0.4, 'scam': -0.7,
+    'liar': -0.8, 'lying': -0.7, 'waste': -0.5, 'useless': -0.6, 'pathetic': -0.7,
+    'refund': -0.2, 'cancel': -0.3, 'charge': -0.2, 'bill': -0.2, 'overcharge': -0.5,
+    'delay': -0.4, 'delayed': -0.4, 'waiting': -0.3, 'hold': -0.3, 'hour': -0.2,
+    'hours': -0.3, 'days': -0.3, 'weeks': -0.4, 'months': -0.5, 'still': -0.1,
+    'yet': -0.1, 'why': -0.1, 'cannot': -0.3, "can't": -0.3, "won't": -0.3, "don't": -0.2
+  };
+  var INTENSIFIERS = { 'very': 1.5, 'extremely': 2.0, 'incredibly': 1.8, 'absolutely': 1.5, 'completely': 1.4,
+    'totally': 1.4, 'really': 1.3, 'so': 1.2, 'too': 1.2, 'highly': 1.3, 'severely': 1.6,
+    'deeply': 1.4, 'utterly': 1.7, 'terribly': 1.5, 'horribly': 1.5 };
+  var NEGATORS = ['not', "n't", 'never', 'no', 'neither', 'nor', 'nothing', 'nowhere', 'hardly', 'barely', 'seldom', 'without'];
+  var DIMINISHERS = { 'slightly': 0.5, 'somewhat': 0.6, 'a bit': 0.5, 'a little': 0.5, 'kind of': 0.6, 'sort of': 0.6 };
+
+  var score = 0, matches = 0, i = 0;
+  while (i < words.length) {
+    var w = words[i];
+    var multiplier = 1.0;
+    // Check for intensifier next to sentiment word
+    if (INTENSIFIERS[w]) {
+      var nextW = words[i + 1];
+      if (nextW && (POS_WORDS[nextW] || NEG_WORDS[nextW])) {
+        multiplier = INTENSIFIERS[w];
+        i++; continue;
+      }
+    }
+    // Check for diminisher
+    if (DIMINISHERS[w]) {
+      var nextW = words[i + 1];
+      if (nextW && (POS_WORDS[nextW] || NEG_WORDS[nextW])) {
+        multiplier = DIMINISHERS[w];
+        i++; continue;
+      }
+    }
+    // Negation handling: check if word is negated
+    var negated = false;
+    if (i > 0 && NEGATORS.indexOf(words[i - 1]) !== -1) negated = true;
+    if (i > 1 && NEGATORS.indexOf(words[i - 2] + ' ' + words[i - 1]) !== -1) negated = true;
+    if (POS_WORDS[w]) {
+      score += (negated ? -POS_WORDS[w] : POS_WORDS[w]) * multiplier;
+      matches++;
+    } else if (NEG_WORDS[w]) {
+      score += (negated ? -NEG_WORDS[w] : NEG_WORDS[w]) * multiplier;
+      matches++;
+    }
+    i++;
+  }
+
+  // Normalize score to [-1, 1] with diminishing returns
+  var raw = matches > 0 ? score / Math.sqrt(matches) : 0;
+  var finalScore = Math.max(-1, Math.min(1, raw / (1 + Math.abs(raw) * 0.5)));
+  var confidence = Math.abs(finalScore);
+  var label = finalScore > 0.15 ? 'POSITIVE' : finalScore < -0.15 ? 'NEGATIVE' : 'NEUTRAL';
+  return { score: Math.round(finalScore * 100) / 100, label: label, confidence: Math.round(confidence * 100) / 100 };
+}
+
+function applySentimentContext() {
+  // Smooth sentiment across consecutive utterances by the same speaker
+  var utts = S.utterances;
+  for (var i = 1; i < utts.length; i++) {
+    if (utts[i].speaker === utts[i - 1].speaker) {
+      // Blend with previous utterance (20% weight)
+      utts[i].fuzzyScore = utts[i].fuzzyScore * 0.8 + utts[i - 1].fuzzyScore * 0.2;
+      utts[i].sentiment = utts[i].fuzzyScore > 0.15 ? 'POSITIVE' : utts[i].fuzzyScore < -0.15 ? 'NEGATIVE' : 'NEUTRAL';
+    }
+  }
+  // Emotional persistence: a negative utterance colors the next 2 agent responses
+  for (var i = 0; i < utts.length - 1; i++) {
+    if (utts[i].speaker === 'B' && utts[i].sentiment === 'NEGATIVE') {
+      for (var j = i + 1; j < Math.min(i + 3, utts.length); j++) {
+        if (utts[j].speaker === 'A' && utts[j].sentiment !== 'NEGATIVE') {
+          // Boost agent's positive score slightly (empathy bonus)
+          utts[j].fuzzyScore = Math.min(1, (utts[j].fuzzyScore || 0) + 0.1);
+        }
+      }
+    }
+  }
+}
+
 /* ===== ADVANCED ALGORITHM: Audio Analysis ===== */
+// Simple radix-2 FFT — returns real and imaginary arrays
+function fft(signal) {
+  var n = signal.length, bits = Math.log2(n);
+  if (bits !== Math.floor(bits)) { // Zero-pad to next power of 2
+    var nn = 1 << Math.ceil(bits);
+    var padded = new Float64Array(nn);
+    padded.set(signal);
+    return fft(padded);
+  }
+  var re = new Float64Array(n), im = new Float64Array(n);
+  for (var i = 0; i < n; i++) re[i] = signal[i];
+  // Bit reversal
+  for (var i = 0; i < n; i++) {
+    var j = 0, bit = 1;
+    for (var k = 0; (1 << k) < n; k++) { if (i & (1 << k)) j |= (1 << (bits - 1 - k)); }
+    if (j > i) { var tr = re[i]; re[i] = re[j]; re[j] = tr; var ti = im[i]; im[i] = im[j]; im[j] = ti; }
+  }
+  for (var len = 2; len <= n; len <<= 1) {
+    var half = len >> 1, wRe = Math.cos(-2 * Math.PI / len), wIm = Math.sin(-2 * Math.PI / len);
+    for (var i = 0; i < n; i += len) {
+      var cRe = 1, cIm = 0;
+      for (var j = 0; j < half; j++) {
+        var uRe = re[i + j], uIm = im[i + j];
+        var vRe = re[i + j + half] * cRe - im[i + j + half] * cIm;
+        var vIm = re[i + j + half] * cIm + im[i + j + half] * cRe;
+        re[i + j] = uRe + vRe; im[i + j] = uIm + vIm;
+        re[i + j + half] = uRe - vRe; im[i + j + half] = uIm - vIm;
+        var ncRe = cRe * wRe - cIm * wIm;
+        var ncIm = cRe * wIm + cIm * wRe;
+        cRe = ncRe; cIm = ncIm;
+      }
+    }
+  }
+  return { re: re, im: im };
+}
+
+function computeSpectralFeatures(data, sr) {
+  var fftSize = 1024;
+  if (data.length < fftSize) fftSize = 1 << Math.floor(Math.log2(data.length));
+  var window = new Float64Array(fftSize);
+  // Hanning window
+  for (var i = 0; i < fftSize; i++) window[i] = data[i] * 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+  var result = fft(window);
+  var n2 = fftSize >> 1;
+  // Magnitude spectrum
+  var mag = new Float64Array(n2);
+  for (var i = 0; i < n2; i++) mag[i] = Math.sqrt(result.re[i] * result.re[i] + result.im[i] * result.im[i]);
+  var totalEnergy = 0;
+  for (var i = 0; i < n2; i++) totalEnergy += mag[i];
+  if (totalEnergy === 0) return { centroid: 0, rolloff: 0, bandRatio: 0.5, energy: 0 };
+  // Spectral centroid (weighted mean of frequencies)
+  var num = 0, den = 0;
+  for (var i = 0; i < n2; i++) {
+    var freq = i * sr / fftSize;
+    num += freq * mag[i]; den += mag[i];
+  }
+  var centroid = den > 0 ? num / den : 0;
+  // Spectral rolloff (frequency below which 85% energy is contained)
+  var cum = 0, rolloff = 0, target = totalEnergy * 0.85;
+  for (var i = 0; i < n2; i++) {
+    cum += mag[i];
+    if (cum >= target) { rolloff = i * sr / fftSize; break; }
+  }
+  // Band energy ratio (high freq / total, split at 1kHz)
+  var splitBin = Math.round(1000 * fftSize / sr);
+  var lowEnergy = 0, highEnergy = 0;
+  for (var i = 0; i < n2; i++) {
+    if (i < splitBin) lowEnergy += mag[i]; else highEnergy += mag[i];
+  }
+  var bandRatio = (lowEnergy + highEnergy) > 0 ? highEnergy / (lowEnergy + highEnergy) : 0.5;
+  return { centroid: centroid, rolloff: rolloff, bandRatio: bandRatio, energy: totalEnergy / fftSize };
+}
+
 function analyzeAudio(buffer) {
   if (!buffer) return;
   var data = buffer.getChannelData(0);
@@ -2504,38 +2685,60 @@ function analyzeAudio(buffer) {
   for (var si3 = 0; si3 < totalSamples; si3++) { var a = Math.abs(data[si3]); if (a > peak) peak = a; }
   var avgRms = rmsProfile.length > 0 ? rmsProfile.reduce(function(a, v) { return a + v; }, 0) / rmsProfile.length : 0;
 
-  // === VOICE TONE EMOTION DETECTION ===
-  // Analyze energy variation across the call to detect stress/anger/calm
+  // === ADVANCED VOICE TONE EMOTION DETECTION with Spectral Features ===
   var segments = [];
-  var segLen = Math.floor(sr * 0.3); // 300ms segments
-  for (var sgi = 0; sgi + segLen < totalSamples; sgi += segLen) {
-    var segSum = 0, segPeak = 0, zeroCross = 0;
-    for (var sgj = sgi; sgj < Math.min(sgi + segLen, totalSamples); sgj++) {
-      var sv = Math.abs(data[sgj]);
-      segSum += sv;
-      if (sv > segPeak) segPeak = sv;
+  var segLen = Math.floor(sr * 0.5); // 500ms segments for better FFT
+  var hopLen = Math.floor(sr * 0.25); // 50% overlap
+  var allCentroids = [], allRolloffs = [], allBandRatios = [], allZCRs = [];
+  for (var sgi = 0; sgi + segLen < totalSamples; sgi += hopLen) {
+    var segEnd = Math.min(sgi + segLen, totalSamples);
+    var segSlice = data.subarray ? data.subarray(sgi, segEnd) : data.slice(sgi, segEnd);
+    var segRms = 0;
+    for (var sj = sgi; sj < segEnd; sj++) segRms += data[sj] * data[sj];
+    segRms = Math.sqrt(segRms / (segEnd - sgi));
+    // Zero-crossing rate
+    var zc = 0;
+    for (var zj = sgi + 1; zj < segEnd; zj++) {
+      if ((data[zj] >= 0 && data[zj-1] < 0) || (data[zj] < 0 && data[zj-1] >= 0)) zc++;
     }
-    var segRms = segSum / segLen;
-    // Zero-crossing rate (higher = more noise/tension)
-    for (var zj = sgi + 1; zj < Math.min(sgi + segLen, totalSamples); zj++) {
-      if ((data[zj] >= 0 && data[zj-1] < 0) || (data[zj] < 0 && data[zj-1] >= 0)) zeroCross++;
-    }
-    var zcr = zeroCross / segLen;
-    segments.push({ rms: segRms, peak: segPeak, zcr: zcr, t: sgi / sr });
+    var zcr = zc / (segEnd - sgi);
+    // Spectral features via FFT
+    var spec = computeSpectralFeatures(segSlice, sr);
+    allCentroids.push(spec.centroid);
+    allRolloffs.push(spec.rolloff);
+    allBandRatios.push(spec.bandRatio);
+    allZCRs.push(zcr);
+    segments.push({ rms: segRms, zcr: zcr, centroid: spec.centroid, rolloff: spec.rolloff, bandRatio: spec.bandRatio, energy: spec.energy, t: sgi / sr });
   }
 
-  // Classify emotional state per segment
+  // Normalize features for classification
+  function normalize(arr) {
+    var mn = Infinity, mx = -Infinity;
+    for (var i = 0; i < arr.length; i++) { if (arr[i] < mn) mn = arr[i]; if (arr[i] > mx) mx = arr[i]; }
+    var range = mx - mn || 1;
+    return arr.map(function(v) { return (v - mn) / range; });
+  }
+  var normCentroids = normalize(allCentroids);
+  var normZCRs = normalize(allZCRs);
+  var normBandRatios = normalize(allBandRatios);
+
+  // Classify emotional state per segment with spectral fusion
   var emotionSegs = [];
-  var avgZcr = segments.length > 0 ? segments.reduce(function(a, v) { return a + v.zcr; }, 0) / segments.length : 0;
   for (var ei = 0; ei < segments.length; ei++) {
     var seg = segments[ei];
+    var nc = normCentroids[ei] || 0, nz = normZCRs[ei] || 0, nb = normBandRatios[ei] || 0;
+    // Stress: high centroid (bright/tense) + high ZCR + high band ratio (lots of high freq energy)
+    var stressScore = nc * 0.4 + nz * 0.35 + nb * 0.25;
+    // Calm: low centroid + low ZCR + moderate energy
+    var calmScore = (1 - nc) * 0.3 + (1 - nz) * 0.35 + (seg.rms > avgRms * 0.5 ? 0.35 : 0);
+    // Energy: high RMS
+    var energyScore = seg.rms / (avgRms || 0.01);
     var emotion = 'NEUTRAL';
-    // High RMS + high ZCR = anger/stress
-    if (seg.rms > avgRms * 1.5 && seg.zcr > avgZcr * 1.3) emotion = 'STRESSED';
-    else if (seg.rms > avgRms * 1.3 && seg.zcr > avgZcr * 1.2) emotion = 'AGITATED';
-    else if (seg.rms > avgRms * 0.7 && seg.zcr < avgZcr * 0.8) emotion = 'CALM';
-    else if (seg.rms < avgRms * 0.4) emotion = 'LOW_ENERGY';
-    emotionSegs.push({ emotion: emotion, t: seg.t, rms: seg.rms, peak: seg.peak });
+    if (stressScore > 0.65 && energyScore > 1.2) emotion = 'STRESSED';
+    else if (stressScore > 0.55 && energyScore > 1.0) emotion = 'AGITATED';
+    else if (calmScore > 0.6 && energyScore > 0.6) emotion = 'CALM';
+    else if (energyScore < 0.4) emotion = 'LOW_ENERGY';
+    emotionSegs.push({ emotion: emotion, t: seg.t, rms: seg.rms, stressScore: stressScore, calmScore: calmScore });
   }
 
   // Aggregate emotion breakdown
@@ -2546,9 +2749,9 @@ function analyzeAudio(buffer) {
   var totalEm = emotionSegs.length || 1;
   var emotionPct = {};
   for (var ek in emotionCounts) emotionPct[ek] = Math.round(emotionCounts[ek] / totalEm * 100);
+  var sortedEmotions = Object.keys(emotionPct).sort(function(a, b) { return emotionPct[b] - emotionPct[a]; });
 
   // === TALK SPEED ANALYSIS ===
-  // Calculate speaking pace from audio activity
   var totalVoiceMs = (dur - silences.reduce(function(a, s) { return a + s.dur; }, 0));
   var wordCount = S.callData ? S.callData.totalWords : 0;
   var wpm = totalVoiceMs > 0 ? Math.round(wordCount / totalVoiceMs * 60) : 0;
@@ -2565,7 +2768,9 @@ function analyzeAudio(buffer) {
     pace: wpm,
     emotionSegments: emotionSegs,
     emotionProfile: emotionPct,
-    dominantEmotion: Object.keys(emotionPct).sort(function(a, b) { return emotionPct[b] - emotionPct[a]; })[0]
+    dominantEmotion: sortedEmotions[0] || 'NEUTRAL',
+    spectralCentroid: allCentroids.length > 0 ? allCentroids.reduce(function(a, v) { return a + v; }, 0) / allCentroids.length : 0,
+    spectralRolloff: allRolloffs.length > 0 ? allRolloffs.reduce(function(a, v) { return a + v; }, 0) / allRolloffs.length : 0
   };
 }
 
@@ -3123,6 +3328,79 @@ function renderEmotionTimeline() {
     '<span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:3px"></span> Negative</span></div>' +
     makeRow(agentBars, 'Agent') +
     makeRow(custBars, 'Customer');
+}
+
+/* ===== SENTIMENT FLOW CHART ===== */
+function renderSentimentFlow() {
+  var cv = document.getElementById('sentimentFlowChart');
+  if (!cv) return;
+  var utts = S.utterances || [];
+  if (utts.length < 2) return;
+  var rect = cv.parentElement.getBoundingClientRect();
+  var w = Math.max(rect.width - 16, 280);
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = w * dpr; cv.height = 140 * dpr;
+  cv.style.width = w + 'px'; cv.style.height = '140px';
+  var ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  var pad = { top: 12, bottom: 20, left: 8, right: 8 };
+  var cw = w - pad.left - pad.right;
+  var ch = 140 - pad.top - pad.bottom;
+  ctx.clearRect(0, 0, w, 140);
+  // Collect agent vs customer sentiment over time
+  var agentScores = [], custScores = [], agentTimes = [], custTimes = [];
+  var minTime = utts[0].start || 0, maxTime = utts[utts.length - 1].end || 60000;
+  var timeRange = Math.max(1, maxTime - minTime);
+  for (var i = 0; i < utts.length; i++) {
+    var u = utts[i];
+    var t = ((u.start || 0) - minTime) / timeRange;
+    var s = u.fuzzyScore || 0;
+    if (u.speaker === 'A') { agentScores.push(s); agentTimes.push(t); }
+    else { custScores.push(s); custTimes.push(t); }
+  }
+  function drawLine(scores, times, color) {
+    if (scores.length < 1) return;
+    ctx.beginPath();
+    for (var i = 0; i < scores.length; i++) {
+      var x = pad.left + times[i] * cw;
+      var y = pad.top + ch - (scores[i] + 1) / 2 * ch;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.stroke();
+    // Dots
+    for (var i = 0; i < scores.length; i++) {
+      var x = pad.left + times[i] * cw;
+      var y = pad.top + ch - (scores[i] + 1) / 2 * ch;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+  // Background grid
+  ctx.strokeStyle = 'rgba(148,163,184,0.1)'; ctx.lineWidth = 1;
+  for (var gi = 0; gi <= 4; gi++) {
+    var gy = pad.top + (ch / 4) * gi;
+    ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + cw, gy); ctx.stroke();
+  }
+  // Zero line
+  var zeroY = pad.top + ch / 2;
+  ctx.strokeStyle = 'rgba(148,163,184,0.2)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left + cw, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+  // Legend
+  ctx.font = '9px Inter,sans-serif';
+  ctx.fillStyle = 'var(--blue)'; ctx.fillText('Agent', pad.left + cw - 70, pad.top + 10);
+  ctx.fillStyle = 'var(--green)'; ctx.fillText('Customer', pad.left + cw - 70, pad.top + 22);
+  ctx.fillStyle = 'rgba(148,163,184,0.4)'; ctx.font = '8px Inter,sans-serif';
+  var startLabel = fmtDur(minTime / 1000);
+  var endLabel = fmtDur(maxTime / 1000);
+  ctx.fillText(startLabel, pad.left, 140 - 4);
+  ctx.fillText(endLabel, pad.left + cw - ctx.measureText(endLabel).width, 140 - 4);
+  // Draw lines
+  drawLine(agentScores, agentTimes, '#7c3aed');
+  drawLine(custScores, custTimes, '#22c55e');
 }
 
 /* ===== MULTI-CALL TREND DASHBOARD ===== */
