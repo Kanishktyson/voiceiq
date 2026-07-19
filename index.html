@@ -244,6 +244,8 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 .hidden{display:none!important}
 .text-center{text-align:center}
 .text-muted{color:var(--text2)}
+.text-sm{font-size:11px}
+.text-md{font-size:13px}
 .mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}.mt-24{margin-top:24px}
 .mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
 .flex{display:flex}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}
@@ -294,13 +296,13 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <p style="margin:4px 0 10px;font-size:13px;color:var(--text2)"><i class="fas fa-check-circle" style="color:var(--green)"></i> Trusted by 500+ support teams &nbsp;|&nbsp; <i class="fas fa-chart-line" style="color:var(--blue)"></i> 10,000+ calls analyzed</p>
 
 <!-- SAMPLE REPORT BUTTON — instant demo, no upload needed -->
-<button class="btn btn-lg" id="sampleBtn" onclick="loadSampleReport()" style="background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;padding:12px 28px;font-size:15px;border-radius:12px;margin-bottom:12px;border:none;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,0.3)">
+<button class="btn btn-lg" id="sampleBtn" onclick="loadSampleReport()" aria-label="View sample call analysis report" style="background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;padding:12px 28px;font-size:15px;border-radius:12px;margin-bottom:12px;border:none;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,0.3)">
 <i class="fas fa-rocket"></i> View Sample Report
 </button>
 
 <div class="card" style="max-width:540px;margin:0 auto 12px;text-align:left">
 <div class="card-title"><i class="fas fa-cloud-upload-alt" style="color:var(--blue)"></i> Upload Call Recording</div>
-<div class="upload-zone" id="uploadZone">
+<div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Click or drag to upload an audio file">
 <i class="fas fa-file-audio"></i>
 <p>Drag &amp; drop MP3, WAV, or M4A here</p>
 <p style="font-size:12px;color:var(--text2);margin-top:4px">or click to browse</p>
@@ -308,8 +310,8 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 </div>
 <div class="audio-preview" id="audioPreview">
 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-<button class="btn btn-secondary" style="padding:8px 16px;font-size:12px;min-width:0" id="playBtn" onclick="togglePlay()"><i class="fas fa-play"></i></button>
-<span id="audioDuration" style="font-size:13px;color:var(--text2)">0:00</span>
+<button class="btn btn-secondary" style="padding:8px 16px;font-size:12px;min-width:0" id="playBtn" onclick="togglePlay()" aria-label="Play or pause audio"><i class="fas fa-play"></i></button>
+<span id="audioDuration" class="text-muted text-md">0:00</span>
 <span style="font-size:12px;color:var(--text2)"><i class="fas fa-wave-square"></i> Waveform</span>
 </div>
 <canvas id="waveformCanvas" height="50"></canvas>
@@ -338,7 +340,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 </select>
 </div>
 
-<button class="btn btn-primary btn-lg" id="analyzeBtn" style="margin-top:20px;padding:16px 48px;font-size:18px;border-radius:16px" disabled>
+<button class="btn btn-primary btn-lg" id="analyzeBtn" aria-label="Start analyzing the uploaded call" style="margin-top:20px;padding:16px 48px;font-size:18px;border-radius:16px" disabled>
 <i class="fas fa-magic"></i> Analyze Call
 </button>
 <p id="analyzeError" style="color:var(--red);font-size:13px;margin-top:8px;display:none"></p>
@@ -350,7 +352,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div style="margin-top:10px">
 <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Get a free key at <a href="https://assemblyai.com" target="_blank" style="color:var(--blue)">assemblyai.com</a></p>
 <input type="text" id="apiKeyInput" placeholder="Paste your API key here..." style="margin-bottom:4px">
-<p style="font-size:11px;color:var(--text2)"><i class="fas fa-info-circle"></i> Saved locally. Demo mode works without a key.</p>
+<p class="text-muted text-sm"><i class="fas fa-info-circle"></i> Saved locally. Demo mode works without a key.</p>
 </div>
 </details>
 </div>
@@ -565,7 +567,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 </svg>
 <h2 style="font-family:'Poppins',sans-serif;font-size:clamp(22px,5vw,30px);margin-bottom:6px">Analysis Complete</h2>
 <p class="text-muted" style="margin-bottom:20px;font-size:15px">Your call has been fully analyzed and scored</p>
-<div class="card" style="text-align:center">
+<div class="card" class="text-center">
 <div class="card-title justify-center"><i class="fas fa-download" style="color:var(--blue)"></i> Export Reports</div>
 <div class="download-grid">
 <button class="btn btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF Report</button>
@@ -656,14 +658,14 @@ const DEMO_NEGATIVE = [
 
 /* ========================= INIT ========================= */
 document.addEventListener('DOMContentLoaded', () => {
-  const saved = localStorage.getItem('voiceiq_api_key');
+  const saved = sessionStorage.getItem('voiceiq_api_key');
   if (saved) {
     document.getElementById('apiKeyInput').value = saved;
     S.apiKey = saved;
   }
   document.getElementById('apiKeyInput').addEventListener('input', e => {
     S.apiKey = e.target.value.trim();
-    localStorage.setItem('voiceiq_api_key', S.apiKey);
+    sessionStorage.setItem('voiceiq_api_key', S.apiKey);
     checkReady();
   });
 
@@ -810,11 +812,15 @@ function buildDots() {
   for (let i = 3; i <= TOTAL; i++) {
     const c = document.getElementById('navDots' + i);
     if (c) {
+      c.setAttribute('role', 'navigation');
+      c.setAttribute('aria-label', 'Screen navigation');
       c.innerHTML = '';
       for (let j = 1; j <= TOTAL; j++) {
         const d = document.createElement('div');
         d.className = 'nav-dot';
         d.textContent = j;
+        d.setAttribute('role', 'button');
+        d.setAttribute('aria-label', 'Go to screen ' + j);
         d.onclick = () => goToScreen(j);
         c.appendChild(d);
       }
@@ -1280,11 +1286,25 @@ async function runDemoAnalysis() {
 }
 
 /* ========================= ASSEMBLYAI API ========================= */
+/* ========================= ASSEMBLYAI API with retry ========================= */
+async function fetchWithRetry(url, opts, retries) {
+  if (retries === undefined) retries = 2;
+  var lastErr;
+  for (var ri = 0; ri <= retries; ri++) {
+    try {
+      var r = await fetch(url, opts);
+      if (r.ok) return r;
+      lastErr = new Error('HTTP ' + r.status + ': ' + (await r.text() || r.statusText));
+    } catch (e) { lastErr = e; }
+    if (ri < retries) { console.warn('Retry ' + (ri+1) + '/' + retries + ' for ' + url); await sleep(1000 * (ri+1)); }
+  }
+  throw lastErr;
+}
+
 async function uploadAudio() {
-  const r = await fetch('https://api.assemblyai.com/v2/upload', {
+  const r = await fetchWithRetry('https://api.assemblyai.com/v2/upload', {
     method: 'POST', headers: { 'authorization': S.apiKey }, body: S.audioFile
   });
-  if (!r.ok) throw new Error('Upload failed: ' + (await r.text() || r.statusText));
   return (await r.json()).upload_url;
 }
 
@@ -1292,21 +1312,19 @@ async function startTranscription(url) {
   const lang = document.getElementById('langSelect')?.value || 'auto';
   const body = { audio_url: url, speaker_labels: true, sentiment_analysis: true };
   if (lang !== 'auto') body.language_code = lang;
-  const r = await fetch('https://api.assemblyai.com/v2/transcript', {
+  const r = await fetchWithRetry('https://api.assemblyai.com/v2/transcript', {
     method: 'POST',
     headers: { 'authorization': S.apiKey, 'content-type': 'application/json' },
     body: JSON.stringify(body)
   });
-  if (!r.ok) throw new Error('Transcription start failed: ' + (await r.text() || r.statusText));
   return (await r.json()).id;
 }
 
 async function pollTranscription(id) {
   for (let i = 0; i < 200; i++) {
-    const r = await fetch('https://api.assemblyai.com/v2/transcript/' + id, {
+    const r = await fetchWithRetry('https://api.assemblyai.com/v2/transcript/' + id, {
       headers: { 'authorization': S.apiKey }
     });
-    if (!r.ok) throw new Error('Polling failed');
     const d = await r.json();
     if (d.status === 'completed') return d;
     if (d.status === 'error') throw new Error('Transcription error: ' + (d.error || 'unknown'));
@@ -1331,7 +1349,7 @@ async function runWhisperFallback() {
   // Check if model is already cached in IndexedDB
   var cacheKey = 'voiceiq_model_' + modelName.replace(/\//g, '_');
   var isCached = false;
-  try { isCached = !!sessionStorage.getItem(cacheKey); } catch(e){}
+  try { isCached = !!sessionStorage.getItem(cacheKey); } catch(e){ console.error('Cache check failed', e); }
   if (isCached && wl) wl.textContent = 'Whisper model cached — loading...';
   else if (wl) wl.textContent = 'Downloading Whisper ' + modelName.split('/')[1] + ' (' + sizeLabel + ')...';
   var pipe;
@@ -1349,7 +1367,9 @@ async function runWhisperFallback() {
       }
     });
     // Mark cached for next time
-    try { sessionStorage.setItem(cacheKey, '1'); } catch(e){}
+    try { sessionStorage.setItem(cacheKey, '1'); } catch(e){ console.error('Cache write failed', e); }
+
+
     if (wf) wf.style.width = '100%';
     if (wpct) wpct.textContent = '100%';
     setTimeout(function() { if (wp) wp.style.display = 'none'; }, 800);
@@ -1937,7 +1957,7 @@ function renderTalkRatio() {
         '<p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--blue);margin-right:6px"></span> <strong>Agent:</strong> ' + cd.agentWords + ' words (' + aPct + '%)</p>',
         '<p style="font-size:14px;margin:2px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:6px"></span> <strong>Customer:</strong> ' + cd.custWords + ' words (' + cPct + '%)</p>',
         '<p style="font-size:13px;color:var(--text2);margin-top:6px"><i class="fas fa-stopwatch"></i> Avg response time: ' + cd.avgResponseTime + 's</p>',
-        '<p style="font-size:13px;color:var(--text2)"><i class="fas fa-regular fa-circle"></i> Filler words: ' + cd.fillerWords + '</p>',
+        '<p class="text-muted text-md"><i class="fas fa-regular fa-circle"></i> Filler words: ' + cd.fillerWords + '</p>',
         '<p style="font-size:13px;color:' + (tb.ideal ? 'var(--green)' : 'var(--orange)') + '"><i class="fas fa-balance-scale"></i> Talk balance: ' + (tb.ideal ? 'Balanced' : 'Agent-heavy') + ' (' + tb.score + '%)</p>',
         '<p style="font-size:13px;color:' + (intr.count < 3 ? 'var(--green)' : 'var(--orange)') + '"><i class="fas fa-hand-paper"></i> Interruptions: ' + intr.count + ' (' + intr.score + '%)</p>',
       '</div>',
@@ -1957,19 +1977,19 @@ function renderAudioQuality() {
     '<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">',
       '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
         '<div style="font-size:22px;font-weight:800;color:' + (aa.clarity === 'Excellent' ? 'var(--green)' : aa.clarity === 'Good' ? 'var(--blue)' : 'var(--orange)') + '">' + aa.clarity + '</div>',
-        '<div style="font-size:11px;color:var(--text2)">Audio Clarity</div>',
+        '<div class="text-muted text-sm">Audio Clarity</div>',
       '</div>',
       '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
         '<div style="font-size:22px;font-weight:800;color:' + paceColor + '">' + (aa.pace || 0) + ' wpm</div>',
-        '<div style="font-size:11px;color:var(--text2)">Speaking Pace (' + paceLabel + ')</div>',
+        '<div class="text-muted text-sm">Speaking Pace (' + paceLabel + ')</div>',
       '</div>',
       '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
         '<div style="font-size:22px;font-weight:800;color:var(--green)">' + aa.voiceActivity + '%</div>',
-        '<div style="font-size:11px;color:var(--text2)">Voice Activity</div>',
+        '<div class="text-muted text-sm">Voice Activity</div>',
       '</div>',
       '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 16px;min-width:130px">',
         '<div style="font-size:22px;font-weight:800;color:' + (aa.silenceCount < 5 ? 'var(--green)' : 'var(--orange)') + '">' + aa.silenceCount + ' / ' + aa.silenceTotal + 's</div>',
-        '<div style="font-size:11px;color:var(--text2)">Pauses / Silence</div>',
+        '<div class="text-muted text-sm">Pauses / Silence</div>',
       '</div>',
     '</div>',
     '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;font-size:11px">',
@@ -2018,9 +2038,9 @@ function renderDashboard() {
   const em = { POSITIVE: '\uD83D\uDE0A', NEUTRAL: '\uD83D\uDE10', NEGATIVE: '\uD83D\uDE20' };
   jb.innerHTML = `
     <span style="font-size:32px">${em[S.callData.startEmotion]||'\uD83D\uDE10'}</span>
-    <span style="font-size:13px;color:var(--text2)">${S.callData.startEmotion||'NEUTRAL'}</span>
+    <span class="text-muted text-md">${S.callData.startEmotion||'NEUTRAL'}</span>
     <span class="arrow"><i class="fas fa-arrow-right"></i></span>
-    <span style="font-size:13px;color:var(--text2)">${S.callData.endEmotion||'NEUTRAL'}</span>
+    <span class="text-muted text-md">${S.callData.endEmotion||'NEUTRAL'}</span>
     <span style="font-size:32px">${em[S.callData.endEmotion]||'\uD83D\uDE10'}</span>
   `;
 
@@ -2131,7 +2151,7 @@ function renderSuggester() {
     const d = document.createElement('div');
     d.innerHTML = `<h4 style="margin-bottom:8px;color:var(--orange)"><i class="fas fa-bookmark"></i> Situation #${i+1}</h4>
       <div class="sug-box wrong"><div class="sug-label" style="color:var(--red)"><i class="fas fa-times-circle"></i> What Agent Said</div>
-        <p style="font-size:13px;color:var(--text2)">Customer: "${esc(m.customerText)}"</p>
+        <p class="text-muted text-md">Customer: "${esc(m.customerText)}"</p>
         <p style="font-size:14px;margin-top:6px;color:var(--red)">Agent: "${esc(m.agentText)}"</p></div>
       <div class="sug-box right"><div class="sug-label" style="color:var(--green)"><i class="fas fa-check-circle"></i> Better Alternative</div>
         <p style="font-size:14px">"${genAlt(m.customerText)}"</p></div>
@@ -2377,7 +2397,7 @@ async function translateTxt(text) {
       var d = await r.json();
       if (d && d[0] && d[0][0] && d[0][0][0]) return d[0][0][0].trim();
     }
-  } catch(e) {}
+  } catch(e) { console.error('Translate API 1 failed', e); }
   try {
     var r2 = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(t) + '&langpair=hi|en');
     if (r2.ok) {
@@ -2385,7 +2405,7 @@ async function translateTxt(text) {
       if (d2.responseData && d2.responseData.translatedText)
         return d2.responseData.translatedText.replace(/&#\d+;/g,'').trim();
     }
-  } catch(e) {}
+  } catch(e) { console.error('Translate API 2 failed', e); }
   return text;
 }
 
@@ -2557,7 +2577,7 @@ function preprocessAudio(buffer) {
     src.buffer = buf;
     src.connect(ctx.destination);
     return buf;
-  } catch(e) { return buffer; }
+  } catch(e) { console.error('Audio decode failed', e); return buffer; }
 }
 
 /* ===== FREE TOOL: Word Pattern Analyzer ===== */
@@ -2675,7 +2695,7 @@ function showCallHistoryPanel(filter) {
       return '<div class="hist-item" style="border-bottom:1px solid rgba(148,163,184,0.1);padding:8px 0;display:flex;align-items:center;gap:6px">' +
         '<input type="checkbox" ' + checked + ' onchange="toggleCompare(' + idx + ')" style="accent-color:var(--blue)">' +
         '<div onclick="loadHistoryEntry(' + idx + ')" style="flex:1;cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +
-        '<div><span style="font-size:13px;font-weight:600">' + ds + '</span><br><span style="font-size:11px;color:var(--text2)">' + e.duration + ' | ' + (e.callData ? (e.callData.agentUtts + e.callData.custUtts) : 0) + ' utts</span></div>' +
+        '<div><span style="font-size:13px;font-weight:600">' + ds + '</span><br><span class="text-muted text-sm">' + e.duration + ' | ' + (e.callData ? (e.callData.agentUtts + e.callData.custUtts) : 0) + ' utts</span></div>' +
         '<div style="text-align:right"><span style="font-size:16px;font-weight:700;color:' + c + '">' + e.overall + '%</span><br><span style="font-size:11px;color:' + c + '">' + e.grade + '</span></div></div></div>';
     }).join('');
 }
@@ -2708,7 +2728,7 @@ function compareSelected() {
   html += '<canvas id="compareRadar" style="width:100%;max-width:380px;margin:0 auto;display:block"></canvas>';
   html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">';
   datasets.forEach(function(ds) {
-    html += '<span style="font-size:11px;color:var(--text2)"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + ds.color + ';margin-right:4px"></span>' + ds.label + '</span>';
+    html += '<span class="text-muted text-sm"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + ds.color + ';margin-right:4px"></span>' + ds.label + '</span>';
   });
   html += '</div>';
   panel.innerHTML = html;
@@ -3191,7 +3211,7 @@ function renderGapAnalysis() {
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font-size:13px;font-weight:600;color:' + c + '">' + g.label + '</span>' +
       '<span style="font-size:12px;color:' + c + '">' + g.score + '% (-' + g.gap + ')</span></div>' +
-      (g.count > 0 ? '<span style="font-size:11px;color:var(--text2)">' + g.count + ' problematic utterance(s)' : '') +
+      (g.count > 0 ? '<span class="text-muted text-sm">' + g.count + ' problematic utterance(s)' : '') +
       (g.examples.length ? '<div style="margin-top:2px;font-size:11px;color:var(--text2);font-style:italic">"' + esc(g.examples[0].substring(0, 80)) + '"</div>' : '') +
       '</div>';
   }).join('');
