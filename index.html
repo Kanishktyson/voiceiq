@@ -338,7 +338,7 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <i class="fas fa-magic"></i> Analyze Call
 </button>
 <p id="analyzeError" style="color:var(--red);font-size:13px;margin-top:8px;display:none"></p>
-<p id="demoHint" style="color:var(--orange);font-size:12px;margin-top:8px;display:none"><i class="fas fa-flask"></i> No API key &mdash; will run in <strong>Demo Mode</strong> with sample data</p>
+<p id="demoHint" style="color:var(--red);font-size:13px;margin-top:8px;display:none"><i class="fas fa-exclamation-triangle"></i> Add an AssemblyAI API key to analyze your audio, or click <strong>View Sample Report</strong> above for a demo</p>
 
 <!-- API Key — collapsed by default -->
 <details style="max-width:540px;margin:16px auto 0;text-align:left;background:var(--card);border-radius:var(--radius);padding:12px 16px;border:1px solid rgba(124,58,237,0.08)">
@@ -690,10 +690,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function checkReady() {
   const btn = document.getElementById('analyzeBtn');
   const hint = document.getElementById('demoHint');
-  btn.disabled = !S.audioFile;
-  if (!S.apiKey && S.audioFile) {
+  if (!S.audioFile) {
+    btn.disabled = true;
+    hint.style.display = 'none';
+  } else if (!S.apiKey) {
+    btn.disabled = true;
     hint.style.display = 'block';
   } else {
+    btn.disabled = false;
     hint.style.display = 'none';
   }
 }
@@ -854,10 +858,6 @@ function handleFile(file) {
   document.getElementById('analyzeError').style.display = 'none';
   checkReady();
   drawWaveform(file);
-  // Auto-analyze after file loads
-  setTimeout(function() {
-    if (S.audioFile) document.getElementById('analyzeBtn').click();
-  }, 600);
 }
 
 async function drawWaveform(file) {
@@ -928,8 +928,12 @@ function showToast(msg, type) {
 /* ========================= MAIN ANALYSIS ========================= */
 document.getElementById('analyzeBtn').addEventListener('click', async () => {
   if (!S.audioFile) return;
-  S.isDemo = !S.apiKey && !S.useBackend;
-  document.getElementById('demoBadge').classList.toggle('hidden', !S.isDemo);
+  if (!S.apiKey && !S.useBackend) {
+    showToast('Add an API key to analyze your file, or click View Sample Report above for a demo', 'error');
+    return;
+  }
+  S.isDemo = false;
+  document.getElementById('demoBadge').classList.add('hidden');
   showScreen(2);
   await runAnalysis();
 });
