@@ -118,6 +118,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 .chat-bubble{max-width:85%;padding:14px 18px;border-radius:16px;margin-bottom:10px;position:relative;font-size:14px;line-height:1.55;animation:fadeSlideUp .3s ease both}
 .chat-bubble.agent{background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.2);align-self:flex-start;margin-right:auto;border-bottom-left-radius:4px}
 .chat-bubble.customer{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);align-self:flex-end;margin-left:auto;border-bottom-right-radius:4px}
+.chat-bubble.synced{box-shadow:0 0 20px rgba(124,58,237,0.5),inset 0 0 20px rgba(124,58,237,0.05);border-color:var(--blue);transform:scale(1.02);transition:all .15s}
 .chat-bubble.customer.negative{border-color:rgba(239,68,68,0.5);box-shadow:0 0 16px rgba(239,68,68,0.15)}
 .chat-bubble .meta{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
 .chat-bubble .speaker{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
@@ -312,6 +313,9 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <span style="font-size:12px;color:var(--text2)"><i class="fas fa-wave-square"></i> Waveform</span>
 </div>
 <canvas id="waveformCanvas" height="50"></canvas>
+<div style="position:relative;height:4px;background:rgba(124,58,237,0.15);border-radius:2px;margin-top:4px;overflow:hidden">
+<div id="playProgress" style="position:absolute;left:0;top:0;height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:2px;transition:width .1s linear"></div>
+</div>
 </div>
 <input type="file" id="fileInput" accept=".mp3,.wav,.m4a,audio/*" style="display:none">
 </div>
@@ -485,6 +489,19 @@ select{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(124
 <div class="card-title"><i class="fas fa-chart-simple" style="color:var(--blue)"></i> Call KPIs</div>
 <div class="kpi-grid" id="kpiGrid"></div>
 </div>
+<div class="card">
+<div class="card-title" style="cursor:pointer" onclick="var n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none'"><i class="fas fa-sliders" style="color:var(--purple)"></i> Score Weights <span style="font-size:11px;color:var(--text2);-webkit-text-fill-color:var(--text2)">(click to adjust)</span></div>
+<div id="weightPanel" style="display:none;padding:8px 0">
+<p style="font-size:12px;color:var(--text2);margin-bottom:8px">Drag sliders to prioritize metrics for overall score</p>
+<div id="weightControls"></div>
+<button class="btn btn-primary btn-sm" onclick="applyWeights()" style="margin-top:8px"><i class="fas fa-check"></i> Apply Weights</button>
+<button class="btn btn-secondary btn-sm" onclick="resetWeights()" style="margin-top:8px;margin-left:6px"><i class="fas fa-rotate"></i> Reset</button>
+</div>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-ranking-star" style="color:var(--orange)"></i> Industry Benchmark</div>
+<div id="benchmarkContainer"><p class="text-muted">Analyzing...</p></div>
+</div>
 <div class="nav-arrows">
 <button class="btn btn-secondary" onclick="goToScreen(5)"><i class="fas fa-chevron-left"></i> Previous</button>
 <button class="btn btn-primary" onclick="goToScreen(7)">Next <i class="fas fa-chevron-right"></i></button>
@@ -606,7 +623,8 @@ const S = {
   negativeMoments: [],
   scores: { empathy: 0, tone: 0, resolution: 0, negativity: 100, overall: 0, grade: 'N/A' },
   callData: {},
-  timing: { total: 0, api: 0, processing: 0 }
+  timing: { total: 0, api: 0, processing: 0 },
+  weights: { empathy:11, tone:9, resolution:9, negativity:9, balance:7, interrupt:7, pace:7, turn:7, keywords:6, listening:6, qratio:5, hedging:5, echo:12 }
 };
 
 let currentScreen = 1;
@@ -904,18 +922,62 @@ async function drawWaveform(file) {
 }
 
 const audioSourceNode = { current: null };
+var _playbackTimer = null, _playbackStart = 0, _playbackOffset = 0;
 
-function togglePlay() {
-  if (S.isPlaying) { S.audioCtx.close(); S.audioCtx = null; S.isPlaying = false; document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>'; return; }
+function togglePlay(seekTo) {
+  if (S.isPlaying) {
+    S.audioCtx.close(); S.audioCtx = null; S.isPlaying = false;
+    document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>';
+    if (_playbackTimer) { clearInterval(_playbackTimer); _playbackTimer = null; }
+    if (seekTo !== undefined) _playbackOffset = seekTo;
+    return;
+  }
   if (!S.audioBuffer) return;
   if (!S.audioCtx) S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const src = S.audioCtx.createBufferSource();
+  var src = S.audioCtx.createBufferSource();
   src.buffer = S.audioBuffer;
   src.connect(S.audioCtx.destination);
-  src.start(0);
+  var startOff = _playbackOffset || 0;
+  src.start(0, startOff);
+  _playbackStart = S.audioCtx.currentTime - startOff;
   S.isPlaying = true;
   document.getElementById('playBtn').innerHTML = '<i class="fas fa-stop"></i>';
-  src.onended = () => { S.isPlaying = false; document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>'; };
+  src.onended = function() {
+    S.isPlaying = false; _playbackOffset = 0;
+    document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>';
+    if (_playbackTimer) { clearInterval(_playbackTimer); _playbackTimer = null; }
+    document.querySelectorAll('.chat-bubble.synced').forEach(function(e) { e.classList.remove('synced'); });
+    var pb = document.getElementById('playProgress');
+    if (pb) pb.style.width = '0%';
+  };
+  // Sync transcript
+  if (_playbackTimer) { clearInterval(_playbackTimer); }
+  _playbackTimer = setInterval(function() {
+    if (!S.isPlaying) return;
+    var elapsed = (S.audioCtx.currentTime - _playbackStart) * 1000;
+    // Update progress bar
+    var pct = S.audioBuffer ? Math.min(100, elapsed / (S.audioBuffer.duration * 1000) * 100) : 0;
+    var pb = document.getElementById('playProgress');
+    if (pb) pb.style.width = pct + '%';
+    // Sync transcript
+    if (!S.utterances.length) return;
+    var found = false;
+    document.querySelectorAll('.chat-bubble.synced').forEach(function(e) { e.classList.remove('synced'); });
+    for (var si = 0; si < S.utterances.length; si++) {
+      var u = S.utterances[si];
+      if (elapsed >= (u.start||0) && elapsed <= (u.end||u.start+3000)) {
+        var bubbles = document.querySelectorAll('.chat-bubble');
+        if (bubbles[si]) { bubbles[si].classList.add('synced'); bubbles[si].scrollIntoView({ block:'nearest', behavior:'smooth' }); }
+        found = true; break;
+      }
+    }
+    if (!found && S.utterances.length) {
+      var lastU = S.utterances[S.utterances.length-1];
+      if (elapsed > (lastU.end||lastU.start+3000)) {
+        clearInterval(_playbackTimer); _playbackTimer = null;
+      }
+    }
+  }, 200);
 }
 
 /* ========================= TOAST ========================= */
@@ -1483,10 +1545,12 @@ function calcScores() {
   var qratio = S.questionRatioScore || 75;
   var hedging = S.hedgingScore || 75;
   var echo = S.echoScore || 75;
+  var w = S.weights || { empathy:11, tone:9, resolution:9, negativity:9, balance:7, interrupt:7, pace:7, turn:7, keywords:6, listening:6, qratio:5, hedging:5, echo:12 };
+  var wTotal = w.empathy+w.tone+w.resolution+w.negativity+w.balance+w.interrupt+w.pace+w.turn+w.keywords+w.listening+w.qratio+w.hedging+w.echo;
   var overall = Math.round(
-    empathy*0.11 + tone*0.09 + resolution*0.09 + negativity*0.09 +
-    balance*0.07 + interrupt*0.07 + paceScore*0.07 + turn*0.07 + keywords*0.06 +
-    listening*0.06 + qratio*0.05 + hedging*0.05 + echo*0.12
+    (empathy*w.empathy + tone*w.tone + resolution*w.resolution + negativity*w.negativity +
+    balance*w.balance + interrupt*w.interrupt + paceScore*w.pace + turn*w.turn + keywords*w.keywords +
+    listening*w.listening + qratio*w.qratio + hedging*w.hedging + echo*w.echo) / wTotal
   );
   var grade = overall>90?'A':overall>80?'B':overall>70?'C':overall>55?'D':'F';
   S.scores = {
@@ -1907,6 +1971,13 @@ function renderAudioQuality() {
         '<div style="font-size:22px;font-weight:800;color:' + (aa.silenceCount < 5 ? 'var(--green)' : 'var(--orange)') + '">' + aa.silenceCount + ' / ' + aa.silenceTotal + 's</div>',
         '<div style="font-size:11px;color:var(--text2)">Pauses / Silence</div>',
       '</div>',
+    '</div>',
+    '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;font-size:11px">',
+      '<span style="background:rgba(239,68,68,0.15);padding:3px 10px;border-radius:8px;color:var(--red)">\u{1F620} Stressed ' + (aa.emotionProfile.STRESSED||0) + '%</span>',
+      '<span style="background:rgba(245,158,11,0.15);padding:3px 10px;border-radius:8px;color:var(--orange)">\u{1F620} Agitated ' + (aa.emotionProfile.AGITATED||0) + '%</span>',
+      '<span style="background:rgba(148,163,184,0.15);padding:3px 10px;border-radius:8px;color:var(--text2)">\u{1F610} Neutral ' + (aa.emotionProfile.NEUTRAL||0) + '%</span>',
+      '<span style="background:rgba(34,197,94,0.15);padding:3px 10px;border-radius:8px;color:var(--green)">\u{1F60A} Calm ' + (aa.emotionProfile.CALM||0) + '%</span>',
+      '<span style="background:rgba(139,92,246,0.15);padding:3px 10px;border-radius:8px;color:var(--purple)">\u{1F634} Low Energy ' + (aa.emotionProfile.LOW_ENERGY||0) + '%</span>',
     '</div>'
   ].join('');
 }
@@ -1982,6 +2053,69 @@ function renderDashboard() {
   if (scr && scr.all) {
     renderRadarChart('radarChart', [scr.empathy,scr.tone,scr.resolution,scr.negativity,scr.balance,scr.interrupt,scr.pace,scr.turn,scr.keywords,scr.listening||50,scr.qratio||75,scr.hedging||75,scr.echo||75], scr.labels);
   }
+  renderWeights();
+  renderBenchmark();
+}
+
+/* ========================= SCORE WEIGHTS ========================= */
+var WEIGHT_KEYS = ['empathy','tone','resolution','negativity','balance','interrupt','pace','turn','keywords','listening','qratio','hedging','echo'];
+var WEIGHT_LABELS = ['Empathy','Tone','Resolution','Negativity','Balance','Interruptions','Pace','Turn-taking','Keywords','Listening','Q Ratio','Hedging','Emotional Echo'];
+
+function renderWeights() {
+  var el = document.getElementById('weightControls');
+  if (!el) return;
+  var w = S.weights || {};
+  el.innerHTML = WEIGHT_KEYS.map(function(k, i) {
+    var v = w[k] || 10;
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="width:110px;font-size:11px;color:var(--text2)">' + WEIGHT_LABELS[i] + '</span><input type="range" min="0" max="20" value="' + v + '" id="w_' + k + '" style="flex:1;padding:0;height:4px" oninput="document.getElementById(\'wv_' + k + '\').textContent=this.value"><span id="wv_' + k + '" style="font-size:11px;width:20px;color:var(--text)">' + v + '</span></div>';
+  }).join('');
+}
+function applyWeights() {
+  var w = {};
+  WEIGHT_KEYS.forEach(function(k) {
+    var inp = document.getElementById('w_' + k);
+    w[k] = inp ? parseInt(inp.value) || 10 : 10;
+  });
+  S.weights = w;
+  if (S.scores && S.utterances.length) { calcScores(); renderDashboard(); }
+  showToast('Weights applied — overall score recalculated', 'success');
+}
+function resetWeights() {
+  S.weights = { empathy:11, tone:9, resolution:9, negativity:9, balance:7, interrupt:7, pace:7, turn:7, keywords:6, listening:6, qratio:5, hedging:5, echo:12 };
+  renderWeights();
+  if (S.scores && S.utterances.length) { calcScores(); renderDashboard(); }
+  showToast('Weights reset to default', 'info');
+}
+
+/* ========================= BENCHMARK ========================= */
+var INDUSTRY_BENCHMARK = {
+  empathy: 72, tone: 68, resolution: 75, negativity: 70, balance: 65,
+  interrupt: 80, pace: 74, turn: 70, keywords: 60, listening: 71,
+  qratio: 66, hedging: 68, echo: 70, overall: 72
+};
+
+function renderBenchmark() {
+  var el = document.getElementById('benchmarkContainer');
+  if (!el) return;
+  var s = S.scores;
+  if (!s || !s.overall) { el.innerHTML = '<p class="text-muted">No data yet</p>'; return; }
+  var b = INDUSTRY_BENCHMARK;
+  var above = s.overall > b.overall;
+  var diff = Math.abs(s.overall - b.overall);
+  var html = '<div style="display:flex;gap:12px;flex-wrap:wrap">';
+  html += '<div class="summary-box ' + (above ? 'green' : 'orange') + '" style="flex:1;min-width:80px"><div class="big">' + s.overall + '%</div><div class="sml">Your Score</div></div>';
+  html += '<div class="summary-box blue" style="flex:1;min-width:80px"><div class="big">' + b.overall + '%</div><div class="sml">Industry Avg</div></div>';
+  html += '<div class="summary-box ' + (above ? 'green' : 'red') + '" style="flex:1;min-width:80px"><div class="big" style="font-size:18px">' + (above ? '\u25B2 +' : '\u25BC -') + diff + '%</div><div class="sml">vs Industry</div></div>';
+  html += '</div><div style="margin-top:8px;font-size:11px;color:var(--text2)">';
+  var metrics = WEIGHT_KEYS.slice(0, 8).map(function(k, i) {
+    var sv = s[k] || 0;
+    var bv = b[k] || 50;
+    var ic = sv >= bv ? 'var(--green)' : 'var(--red)';
+    var arrow = sv >= bv ? '\u25B2' : '\u25BC';
+    return '<span style="display:inline-block;margin:2px 8px;color:' + ic + '">' + arrow + ' ' + WEIGHT_LABELS[i] + ' ' + sv + '% vs ' + bv + '%</span>';
+  }).join('');
+  html += metrics + '</div>';
+  el.innerHTML = html;
 }
 
 /* ========================= RENDER: SUGGESTER ========================= */
@@ -2071,9 +2205,11 @@ function downloadPDF() {
     add('Overall Score: '+s.overall+'% ('+s.grade+')',true,13);
     add('Duration: '+(cd.duration||'N/A')+'  |  Agent: '+(cd.agentUtts||'N/A')+'  |  Customer: '+(cd.custUtts||'N/A'),false,9);
     y-=8;
-    var m=[['Empathy',s.empathy],['Tone',s.tone],['Resolution',s.resolution],['Negativity',s.negativity],['Balance',s.balance],['Interruptions',s.interrupt],['Pace',s.pace],['Turn-taking',s.turn],['Keywords',s.keywords],['Listening',s.listening||50],['Q Ratio',s.qratio||75],['Hedging',s.hedging||75],['Echo',s.echo||75]];
-    for(var i=0;i<m.length;i++){
-      if(y<80) break;
+    var m=[['Empathy',s.empathy,'0.48 0.23 0.93'],['Tone',s.tone,'0.13 0.77 0.37'],['Resolution',s.resolution,'0.96 0.62 0.04'],['Negativity',s.negativity,'0.93 0.27 0.27'],['Balance',s.balance,'0.65 0.48 0.98'],['Interruptions',s.interrupt,'0.48 0.23 0.93'],['Pace',s.pace,'0.13 0.77 0.37'],['Turn-taking',s.turn,'0.02 0.71 0.83'],['Keywords',s.keywords,'0.96 0.62 0.04'],['Listening',s.listening||50,'0.48 0.23 0.93'],['Q Ratio',s.qratio||75,'0.65 0.48 0.98'],['Hedging',s.hedging||75,'0.93 0.27 0.27'],['Echo',s.echo||75,'0.02 0.71 0.83']];
+    y-=2; add('SCORE BREAKDOWN',true,12); y-=2;
+    var barLeft=400, barMax=160, barStartY=y;
+    for(var i=0;i<Math.min(m.length,10);i++){
+      if(barStartY-(i*20)<80) break;
       add(m[i][0]+'  '+m[i][1]+'%  ['+new Array(Math.round(m[i][1]/5)+1).join('|')+new Array(21-Math.round(m[i][1]/5)).join('.')+']',false,8);
     }
     var pdfRecs = typeof getPriorityRecommendations === 'function' ? getPriorityRecommendations() : [];
@@ -2089,6 +2225,17 @@ function downloadPDF() {
       for(var i=0;i<lines.length;i++){
         var l=lines[i];
         content+='BT /F'+(l.bold?1:2)+' '+l.size+' Tf 50 '+l.y+' Td ('+esc(l.text)+') Tj ET\n';
+      }
+      // Bar chart: draw filled rectangles for each metric
+      var bLeft=400, bMax=160, bTop=barStartY;
+      for(var bi=0;bi<Math.min(m.length,10);bi++){
+        var bY=bTop-(bi*20);
+        if(bY<80) break;
+        var bW=(m[bi][1]/100)*bMax;
+        content+='0.75 0.75 0.75 RG 0.75 0.75 0.75 rg\n'; // gray background bar
+        content+=bLeft+' '+bY+' '+bMax+' 6 re f\n';
+        content+=m[bi][2]+' RG '+m[bi][2]+' rg\n'; // colored fill
+        content+=bLeft+' '+bY+' '+bW+' 6 re f\n';
       }
       var h='%PDF-1.4\n', o1='1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n', o2='2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n';
       var o3='3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R/F2 6 0 R>>>>>>endobj\n';
@@ -2267,7 +2414,7 @@ function analyzeAudio(buffer) {
   // Silence detection (pauses > 1s)
   var silences = [];
   var threshold = 0.02;
-  var minGap = sr; // 1 second
+  var minGap = sr;
   var inSilence = false;
   var silenceStart = 0;
   for (var si = 0; si < totalSamples; si++) {
@@ -2286,7 +2433,7 @@ function analyzeAudio(buffer) {
     silences.push({ start: silenceStart / sr, end: totalSamples / sr, dur: (totalSamples - silenceStart) / sr });
 
   // RMS volume per second
-  var secs = Math.floor(dur);
+  var secs = Math.max(1, Math.floor(dur));
   var rmsProfile = [];
   for (var si2 = 0; si2 < secs; si2++) {
     var start = si2 * sr;
@@ -2296,12 +2443,59 @@ function analyzeAudio(buffer) {
     rmsProfile.push(Math.sqrt(sum / (end - start)));
   }
 
-  // Peak volume
+  // Peak & avg volume
   var peak = 0;
   for (var si3 = 0; si3 < totalSamples; si3++) { var a = Math.abs(data[si3]); if (a > peak) peak = a; }
-  var avgRms = 0;
-  for (var ri = 0; ri < rmsProfile.length; ri++) avgRms += rmsProfile[ri];
-  avgRms = rmsProfile.length > 0 ? avgRms / rmsProfile.length : 0;
+  var avgRms = rmsProfile.length > 0 ? rmsProfile.reduce(function(a, v) { return a + v; }, 0) / rmsProfile.length : 0;
+
+  // === VOICE TONE EMOTION DETECTION ===
+  // Analyze energy variation across the call to detect stress/anger/calm
+  var segments = [];
+  var segLen = Math.floor(sr * 0.3); // 300ms segments
+  for (var sgi = 0; sgi + segLen < totalSamples; sgi += segLen) {
+    var segSum = 0, segPeak = 0, zeroCross = 0;
+    for (var sgj = sgi; sgj < Math.min(sgi + segLen, totalSamples); sgj++) {
+      var sv = Math.abs(data[sgj]);
+      segSum += sv;
+      if (sv > segPeak) segPeak = sv;
+    }
+    var segRms = segSum / segLen;
+    // Zero-crossing rate (higher = more noise/tension)
+    for (var zj = sgi + 1; zj < Math.min(sgi + segLen, totalSamples); zj++) {
+      if ((data[zj] >= 0 && data[zj-1] < 0) || (data[zj] < 0 && data[zj-1] >= 0)) zeroCross++;
+    }
+    var zcr = zeroCross / segLen;
+    segments.push({ rms: segRms, peak: segPeak, zcr: zcr, t: sgi / sr });
+  }
+
+  // Classify emotional state per segment
+  var emotionSegs = [];
+  var avgZcr = segments.length > 0 ? segments.reduce(function(a, v) { return a + v.zcr; }, 0) / segments.length : 0;
+  for (var ei = 0; ei < segments.length; ei++) {
+    var seg = segments[ei];
+    var emotion = 'NEUTRAL';
+    // High RMS + high ZCR = anger/stress
+    if (seg.rms > avgRms * 1.5 && seg.zcr > avgZcr * 1.3) emotion = 'STRESSED';
+    else if (seg.rms > avgRms * 1.3 && seg.zcr > avgZcr * 1.2) emotion = 'AGITATED';
+    else if (seg.rms > avgRms * 0.7 && seg.zcr < avgZcr * 0.8) emotion = 'CALM';
+    else if (seg.rms < avgRms * 0.4) emotion = 'LOW_ENERGY';
+    emotionSegs.push({ emotion: emotion, t: seg.t, rms: seg.rms, peak: seg.peak });
+  }
+
+  // Aggregate emotion breakdown
+  var emotionCounts = { STRESSED: 0, AGITATED: 0, NEUTRAL: 0, CALM: 0, LOW_ENERGY: 0 };
+  for (var eci = 0; eci < emotionSegs.length; eci++) {
+    if (emotionCounts[emotionSegs[eci].emotion] !== undefined) emotionCounts[emotionSegs[eci].emotion]++;
+  }
+  var totalEm = emotionSegs.length || 1;
+  var emotionPct = {};
+  for (var ek in emotionCounts) emotionPct[ek] = Math.round(emotionCounts[ek] / totalEm * 100);
+
+  // === TALK SPEED ANALYSIS ===
+  // Calculate speaking pace from audio activity
+  var totalVoiceMs = (dur - silences.reduce(function(a, s) { return a + s.dur; }, 0));
+  var wordCount = S.callData ? S.callData.totalWords : 0;
+  var wpm = totalVoiceMs > 0 ? Math.round(wordCount / totalVoiceMs * 60) : 0;
 
   S.audioAnalysis = {
     duration: Math.round(dur * 10) / 10,
@@ -2311,9 +2505,11 @@ function analyzeAudio(buffer) {
     voiceActivity: Math.round((dur - silences.reduce(function(a, s) { return a + s.dur; }, 0)) / dur * 100),
     peakVolume: Math.round(peak * 100),
     avgVolume: Math.round(avgRms * 100),
-    volumeProfile: rmsProfile,
     clarity: peak > 0.8 ? 'Excellent' : peak > 0.4 ? 'Good' : peak > 0.1 ? 'Fair' : 'Poor',
-    pace: S.callData ? Math.round(S.callData.totalWords / dur * 60) : 0
+    pace: wpm,
+    emotionSegments: emotionSegs,
+    emotionProfile: emotionPct,
+    dominantEmotion: Object.keys(emotionPct).sort(function(a, b) { return emotionPct[b] - emotionPct[a]; })[0]
   };
 }
 
