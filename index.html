@@ -129,7 +129,14 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;ba
 
 /* ===== BADGES ===== */
 .sentiment-badge{font-size:11px;padding:4px 12px;border-radius:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.sentiment-badge.POSITIVE{background:rgba(34,197,94,0.15);color:var(--green)}
+.sentiment-badge.NEGATIVE{background:rgba(239,68,68,0.15);color:var(--red)}
+.sentiment-badge.NEUTRAL{background:rgba(245,158,11,0.15);color:var(--orange)}
 .response-badge{font-size:11px;padding:4px 12px;border-radius:10px;font-weight:700;display:inline-block;margin-top:6px}
+.response-badge.EXCELLENT{background:rgba(34,197,94,0.15);color:var(--green);border:1px solid rgba(34,197,94,0.3)}
+.response-badge.GOOD{background:rgba(124,58,237,0.15);color:var(--blue);border:1px solid rgba(124,58,237,0.3)}
+.response-badge.POOR{background:rgba(245,158,11,0.15);color:var(--orange);border:1px solid rgba(245,158,11,0.3)}
+.response-badge.FAILED{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3)}
 .tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin:2px}
 .demo-badge{position:fixed;top:16px;right:16px;z-index:100;padding:8px 20px;border-radius:20px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--orange);font-size:12px;font-weight:700;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 
@@ -1539,6 +1546,69 @@ function calcEchoScore() {
   var raw = (good / pairs.length) * 100;
   S.echoScore = Math.max(30, Math.min(100, raw > 92 ? Math.round(raw * 0.8) : Math.round(raw)));
   S.echoDetail = pairs;
+}
+
+function calcInterruptionImpact() {
+  var list = (S.interruptions && S.interruptions.list) || [];
+  if (!list.length) { S.interruptionImpact = { score: 100 }; return; }
+  var totalOverlap = list.reduce(function(a, i) { return a + Math.abs(i.overlap || 0); }, 0);
+  var avgOverlap = totalOverlap / list.length;
+  var score = Math.max(20, Math.round(100 - (list.length * 8) - (avgOverlap * 5)));
+  S.interruptionImpact = { score: score, count: list.length, avgOverlap: Math.round(avgOverlap * 10) / 10 };
+}
+
+function calcActiveListening() {
+  var utts = S.utterances;
+  if (!utts.length) { S.activeListeningScore = 50; return; }
+  var agentText = utts.filter(function(u) { return u.speaker === 'A'; }).map(function(u) { return u.text; }).join(' ').toLowerCase();
+  var cues = ['i understand','i see','i hear','tell me more','go on','uh-huh','i appreciate','i hear you','that makes sense','i can imagine','i get that','sure','absolutely','right','okay','i follow','i agree','that\'s fair','i notice','i realize'];
+  var count = 0;
+  for (var i = 0; i < cues.length; i++) {
+    var re = new RegExp(cues[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    var m = agentText.match(re);
+    if (m) count += m.length;
+  }
+  var totalAgentUtts = utts.filter(function(u) { return u.speaker === 'A'; }).length;
+  var ratio = totalAgentUtts > 0 ? count / totalAgentUtts : 0;
+  S.activeListeningScore = Math.min(100, Math.round(Math.min(1, ratio * 5) * 100));
+}
+
+function calcQuestionRatio() {
+  var utts = S.utterances;
+  if (!utts.length) { S.questionRatioScore = 75; return; }
+  var agentUtts = utts.filter(function(u) { return u.speaker === 'A'; });
+  var total = agentUtts.length;
+  if (!total) { S.questionRatioScore = 75; return; }
+  var questions = 0;
+  for (var i = 0; i < agentUtts.length; i++) {
+    var t = agentUtts[i].text;
+    if (t && (t.indexOf('?') !== -1 || /\b(what|how|when|where|why|who|which|can|could|would|will|do|did|does|are|is|may|shall)\s+\w+\?/i.test(t))) {
+      questions++;
+    }
+  }
+  var ratio = questions / total;
+  S.questionRatioScore = Math.min(100, Math.round(Math.min(1, ratio * 6) * 100));
+}
+
+function calcHedging() {
+  var utts = S.utterances;
+  if (!utts.length) { S.hedgingScore = 75; return; }
+  var agentText = utts.filter(function(u) { return u.speaker === 'A'; }).map(function(u) { return u.text; }).join(' ').toLowerCase();
+  var hedgeWords = ['i think','i guess','i suppose','maybe','perhaps','probably','might','possibly','kind of','sort of','a bit','a little','i feel','i believe','in my opinion','it seems','it appears','i would say','i could be wrong','not sure','i don\'t know'];
+  var count = 0;
+  for (var i = 0; i < hedgeWords.length; i++) {
+    var re = new RegExp('\\b' + hedgeWords[i].replace(/ /g, '\\s+') + '\\b', 'gi');
+    var m = agentText.match(re);
+    if (m) count += m.length;
+  }
+  var totalAgentWords = utts.filter(function(u) { return u.speaker === 'A'; }).reduce(function(a, u) { return a + (u.text ? u.text.split(/\s+/).length : 0); }, 0);
+  var hedgeRate = totalAgentWords > 0 ? count / totalAgentWords : 0;
+  S.hedgingScore = Math.max(20, Math.min(100, Math.round(100 - hedgeRate * 500)));
+}
+
+function calcEmotionalEcho() {
+  // Reuse echo score — already calculated in calcEchoScore()
+  S.echoScore = S.echoScore || 75;
 }
 
 function calcScores() {
