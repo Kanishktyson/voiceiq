@@ -369,17 +369,39 @@ select{width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(124
 <!-- SCREEN 3: TRANSCRIPT -->
 <div id="screen3" class="screen">
 <div class="container">
-<div class="nav-bar"><span class="screen-label"><i class="fas fa-comments"></i> Transcript</span><span class="screen-label">Step 3 / 9</span></div>
+<div class="nav-bar"><span class="screen-label"><i class="fas fa-comments"></i> Complete Transcription</span><span class="screen-label">Step 3 / 9</span></div>
 <div class="nav-dots" id="navDots3"></div>
-<div class="card">
-<div class="card-title" style="display:flex;align-items:center;gap:4px">
-<i class="fas fa-message" style="color:var(--blue)"></i>
-<span style="flex:1">Key Moments</span>
-<button class="btn btn-outline" style="padding:4px 14px;font-size:11px;border-radius:8px" id="toggleTranscript" onclick="toggleFullTranscript()"><i class="fas fa-filter"></i> Key</button>
+
+<div class="card" style="padding:24px">
+<div class="card-title" style="font-size:20px;gap:12px;margin-bottom:16px">
+<i class="fas fa-message" style="width:32px;height:32px;font-size:15px;border-radius:10px"></i>
+<span style="flex:1">Complete Call Transcription</span>
+<div style="display:flex;gap:8px;-webkit-text-fill-color:initial">
+<button class="btn btn-outline btn-sm" onclick="toggleFullTranscript()" id="toggleTranscript" style="font-size:12px;border-radius:8px"><i class="fas fa-filter"></i> Key Moments</button>
 </div>
-<div class="summary-strip" id="transcriptSummary" style="margin-bottom:4px"></div>
-<div class="transcript-box" id="transcriptContainer"></div>
 </div>
+
+<!-- Transcript Stats Bar -->
+<div id="transcriptStats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:10px;font-size:13px">
+<span style="color:var(--text2)">Utterances: <strong id="statsUtts" style="color:var(--text)">0</strong></span>
+<span style="color:var(--text2)">Agent: <strong id="statsAgent" style="color:var(--blue)">0</strong></span>
+<span style="color:var(--text2)">Customer: <strong id="statsCust" style="color:var(--green)">0</strong></span>
+<span style="color:var(--text2)">Duration: <strong id="statsDuration" style="color:var(--purple)">0:00</strong></span>
+</div>
+
+<!-- Search -->
+<div style="position:relative;margin-bottom:16px">
+<i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text2);font-size:14px"></i>
+<input type="text" id="transcriptSearch" placeholder="Search transcript..." oninput="filterTranscript(this.value)" style="padding-left:40px;font-size:14px">
+</div>
+
+<!-- Summary strip -->
+<div class="summary-strip" id="transcriptSummary" style="margin-bottom:12px"></div>
+
+<!-- Transcript bubbles -->
+<div class="transcript-box" id="transcriptContainer" style="max-height:none;min-height:300px;border:1px solid rgba(124,58,237,0.06);border-radius:12px;padding:16px;background:rgba(0,0,0,0.15)"></div>
+</div>
+
 <div class="nav-arrows">
 <button class="btn btn-secondary" onclick="goToScreen(2)"><i class="fas fa-chevron-left"></i> Previous</button>
 <button class="btn btn-primary" onclick="goToScreen(4)">Next <i class="fas fa-chevron-right"></i></button>
@@ -1794,13 +1816,19 @@ function renderAll() {
 
 /* ========================= RENDER: TRANSCRIPT ========================= */
 var showFullTranscript = true;
+var _transcriptSearch = '';
 
 function toggleFullTranscript() {
   showFullTranscript = !showFullTranscript;
   const btn = document.getElementById('toggleTranscript');
   btn.innerHTML = showFullTranscript
-    ? '<i class="fas fa-filter"></i> Show Key Moments'
-    : '<i class="fas fa-list"></i> Show Full Transcript';
+    ? '<i class="fas fa-filter"></i> Key Moments'
+    : '<i class="fas fa-list"></i> Full Transcript';
+  renderTranscriptBubbles();
+}
+
+function filterTranscript(q) {
+  _transcriptSearch = (q || '').toLowerCase().trim();
   renderTranscriptBubbles();
 }
 
@@ -1818,6 +1846,16 @@ function renderTranscript() {
     <div class="summary-box red"><div class="big">${neg}</div><div class="sml">Negative</div></div>
     <div class="summary-box blue"><div class="big">${utts.length}</div><div class="sml">Total</div></div>
   `;
+
+  // Stats bar
+  const agentW = utts.filter(u => u.speaker === 'A').reduce((a, u) => a + (u.text ? u.text.split(/\s+/).length : 0), 0);
+  const custW = utts.filter(u => u.speaker === 'B').reduce((a, u) => a + (u.text ? u.text.split(/\s+/).length : 0), 0);
+  const lastEnd = utts.length ? (utts[utts.length - 1].end || 0) : 0;
+  document.getElementById('statsUtts').textContent = utts.length;
+  document.getElementById('statsAgent').textContent = agentW + ' words';
+  document.getElementById('statsCust').textContent = custW + ' words';
+  document.getElementById('statsDuration').textContent = fmtDur(lastEnd / 1000);
+
   renderTranscriptBubbles();
 }
 
@@ -1827,7 +1865,10 @@ function renderTranscriptBubbles() {
   const utts = S.utterances;
   if (!utts.length) return;
 
-  const filtered = showFullTranscript ? utts : utts.filter(u => u.sentiment === 'NEGATIVE' || u.sentiment === 'POSITIVE');
+  let filtered = showFullTranscript ? utts : utts.filter(u => u.sentiment === 'NEGATIVE' || u.sentiment === 'POSITIVE');
+  if (_transcriptSearch) {
+    filtered = filtered.filter(function(u) { return u.text.toLowerCase().indexOf(_transcriptSearch) !== -1; });
+  }
 
   if (!filtered.length) {
     c.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">No key emotional moments found. Click "Show Full Transcript" to see all utterances.</p>';
