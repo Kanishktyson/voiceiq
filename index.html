@@ -785,6 +785,8 @@ function loadSampleReport() {
 }
 
 function runSimulatedAnalysis() {
+  // Preload ML models silently in background for next real analysis
+  initML();
   updateProgress(5); updateStep(0,'done'); document.getElementById('sstatus0').textContent = 'Sample loaded';
   setTimeout(function() {
     updateProgress(20); updateStep(1,'done'); document.getElementById('sstatus1').textContent = 'Transcript ready';
@@ -1078,14 +1080,22 @@ async function runAnalysis() {
 
     await sleep(10); // yield to UI
 
-    // Step 3: Sentiment (fuzzy continuous scoring + context window)
+    // Step 3: Sentiment (ML-powered + heuristic fallback)
     updateStep(3, 'running');
-    S.utterances.forEach(function(u) {
-      var result = analyzeUtteranceSentiment(u.text);
-      u.fuzzyScore = result.score;
-      u.sentiment = result.label;
-      u.confidence = Math.abs(result.score);
-    });
+    document.getElementById('sstatus3').textContent = 'Loading AI models...';
+    await initML();
+    document.getElementById('sstatus3').textContent = 'Analyzing sentiment...';
+    // Try ML first, fallback to heuristic for any failures
+    for (var ui = 0; ui < S.utterances.length; ui++) {
+      var u = S.utterances[ui];
+      var mlResult = await mlSentiment(u.text);
+      if (mlResult) {
+        u.fuzzyScore = mlResult.score; u.sentiment = mlResult.label; u.confidence = mlResult.confidence;
+      } else {
+        var fallback = analyzeUtteranceSentiment(u.text);
+        u.fuzzyScore = fallback.score; u.sentiment = fallback.label; u.confidence = Math.abs(fallback.score);
+      }
+    }
     applySentimentContext();
     S.sentiments = S.utterances.map(function(u) {
       return { speaker: u.speaker, text: u.text, sentiment: u.sentiment, start: u.start, end: u.end, confidence: u.confidence, fuzzyScore: u.fuzzyScore };
@@ -1102,7 +1112,7 @@ async function runAnalysis() {
 
     // Step 5: Evaluate
     updateStep(5, 'running');
-    evaluateAll();
+    await evaluateAll();
     updateStep(5, 'done'); updateProgress(75);
     renderSuggester();
     await sleep(5);
@@ -1283,12 +1293,21 @@ async function runDemoAnalysis() {
   }
   S.utterances = DEMO_UTTERANCES;
   await translateAll();
-  S.sentiments = DEMO_UTTERANCES.map(u => ({
-    speaker: u.speaker, text: u.text, sentiment: u.sentiment,
-    start: u.start, end: u.end, confidence: u.confidence
+  // Load ML models for demo too
+  await initML();
+  if (_ml.ready) {
+    for (var di = 0; di < S.utterances.length; di++) {
+      var du = S.utterances[di];
+      var mr = await mlSentiment(du.text);
+      if (mr) { du.fuzzyScore = mr.score; du.sentiment = mr.label; du.confidence = mr.confidence; }
+    }
+  }
+  S.sentiments = S.utterances.map(u => ({
+    speaker: u.speaker, text: u.text, sentiment: u.sentiment || DEMO_UTTERANCES[S.utterances.indexOf(u)].sentiment,
+    start: u.start, end: u.end, confidence: u.confidence || 0.9
   }));
   S.negativeMoments = DEMO_NEGATIVE.map(m => ({ ...m }));
-  evaluateAll();
+  await evaluateAll();
   calcScores();
   calcSentimentTrend();
   detectInterruptions();
@@ -1520,8 +1539,17 @@ function rateResponse(text) {
 }
 
 function evaluateAll() {
-  for (const m of S.negativeMoments) {
-    m.responseQuality = rateResponse(m.agentText);
+  // Use ML zero-shot if available, otherwise heuristic fallback
+  if (_ml.ready && _ml.zeroShot) {
+    // Async via promise chain to avoid blocking
+    var promises = S.negativeMoments.map(function(m) {
+      return mlRateResponse(m.agentText).then(function(r) { m.responseQuality = r || rateResponse(m.agentText); });
+    });
+    return Promise.all(promises).then(function() { return; });
+  } else {
+    for (const m of S.negativeMoments) {
+      m.responseQuality = rateResponse(m.agentText);
+    }
   }
 }
 
@@ -2552,6 +2580,45 @@ async function translateAll() {
     if (hasDevanagari(m.agentText)) all.push(translateTxt(m.agentText).then(function(t) { return function(v) { t.agentText = v; }; }(m)));
   }
   await Promise.all(all);
+}
+
+/* ===== ML (Transformers.js) MODELS ===== */
+var _ml = { sentiment: null, zeroShot: null, ready: false, loading: false };
+
+async function initML() {
+  if (_ml.ready || _ml.loading) return;
+  _ml.loading = true;
+  try {
+    var mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+    var [s, z] = await Promise.all([
+      mod.pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', { quantized: true }),
+      mod.pipeline('zero-shot-classification', 'Xenova/typeform-distilbert-base-uncased-mnli', { quantized: true })
+    ]);
+    _ml.sentiment = s; _ml.zeroShot = z; _ml.ready = true;
+    console.log('ML models loaded: BERT sentiment + zero-shot');
+  } catch(e) { console.error('ML model load failed, using heuristics', e); }
+  _ml.loading = false;
+}
+
+async function mlSentiment(text) {
+  if (!_ml.ready || !_ml.sentiment) return null;
+  try {
+    var r = await _ml.sentiment(text);
+    var label = r[0].label === 'POSITIVE' ? 'POSITIVE' : 'NEGATIVE';
+    var rawScore = r[0].score;
+    var fuzzyScore = label === 'POSITIVE' ? rawScore : -rawScore;
+    return { score: fuzzyScore, label: label, confidence: rawScore };
+  } catch(e) { return null; }
+}
+
+async function mlRateResponse(text) {
+  if (!_ml.ready || !_ml.zeroShot) return null;
+  try {
+    var r = await _ml.zeroShot(text, ['excellent response', 'good response', 'poor response', 'failed response']);
+    var bestIdx = 0;
+    for (var i = 1; i < r.scores.length; i++) { if (r.scores[i] > r.scores[bestIdx]) bestIdx = i; }
+    return ['EXCELLENT','GOOD','POOR','FAILED'][bestIdx];
+  } catch(e) { return null; }
 }
 
 /* ===== ADVANCED SENTIMENT ANALYSIS with Negation + Intensifiers ===== */
